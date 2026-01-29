@@ -295,7 +295,7 @@ CACHE_TTL_MS=86400000
 ## Three Levels of AI Evals
 
 | Level | Type               | Cost | Frequency | Steps |
-|-------|--------------------|------|-----------|-------|
+|:------|:-------------------|:-----|:----------|:------|
 | 1     | Unit Tests         | Low  | High      | Write Tests, Create Cases, Run & Track |
 | 2     | Model & Human Eval | Med  | Medium    | Log Traces, Look at Traces, Model & Human Eval |
 | 3     | A/B Testing        | High | Low       | Compare Variants, Measure Outcomes |
@@ -303,14 +303,14 @@ CACHE_TTL_MS=86400000
 ### Level 1: Unit Tests
 
 | Write Unit Tests | Test Cases | Run & Track |
-|------------------|------------|-------------|
+|:-----------------|:-----------|:------------|
 | Organize assertions for reuse | Make them challenging | Least friction in your stack |
 | Don't aim for 100% pass rate | Represent real user interactions | Leverage existing analytics |
 
 ### Level 2: Model & Human Eval
 
 | Log Traces | Look at Traces | Model & Human |
-|------------|----------------|---------------|
+|:-----------|:---------------|:--------------|
 | Log user sessions, request flows | Remove friction from data review | LLM-as-judge requires humans |
 | Conversations with LLM | Render domain-specific views | Binary decisions with critiques |
 
