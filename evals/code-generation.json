@@ -1,0 +1,47 @@
+{
+  "name": "Code Generation Evaluation",
+  "description": "Evaluate code generation capabilities across languages and task types",
+  "test_cases": [
+    {
+      "name": "Python - FizzBuzz",
+      "system_prompt": "You are an expert Python developer. Write clean, working code. No explanations, just code.",
+      "prompt": "Write a Python function called fizzbuzz(n) that returns 'Fizz' for multiples of 3, 'Buzz' for multiples of 5, 'FizzBuzz' for both, or the number as string otherwise.",
+      "expected_contains": ["def fizzbuzz", "Fizz", "Buzz", "return"],
+      "criteria": ["correctness", "readability"],
+      "max_tokens": 300
+    },
+    {
+      "name": "Python - List Comprehension",
+      "system_prompt": "Write only the code, no explanations.",
+      "prompt": "Write a Python one-liner using list comprehension to get all even numbers from 1 to 100.",
+      "expected_contains": ["[", "for", "in", "range", "if", "%"],
+      "max_tokens": 100
+    },
+    {
+      "name": "JavaScript - Async/Await",
+      "system_prompt": "You are an expert JavaScript developer. Write modern ES6+ code.",
+      "prompt": "Write an async function called fetchUserData(userId) that fetches from '/api/users/{userId}' and returns the JSON response.",
+      "expected_contains": ["async", "await", "fetch", "json"],
+      "criteria": ["correctness", "modern_syntax"],
+      "max_tokens": 200
+    },
+    {
+      "name": "SQL - Join Query",
+      "system_prompt": "Write only the SQL query, no explanations.",
+      "prompt": "Write a SQL query to get all orders with customer names. Tables: orders(id, customer_id, total), customers(id, name).",
+      "expected_contains": ["SELECT", "JOIN", "orders", "customers"],
+      "max_tokens": 150
+    },
+    {
+      "name": "Bug Fix",
+      "system_prompt": "Find the bug and provide the fixed code only.",
+      "prompt": "Fix this Python code:\n```python\ndef sum_list(numbers):\n    total = 0\n    for i in range(len(numbers)):\n        total += numbers[i + 1]\n    return total\n```",
+      "expected_contains": ["numbers[i]"],
+      "criteria": ["bug_identification", "fix_correctness"],
+      "max_tokens": 200
+    }
+  ],
+  "models": [
+    { "provider": "ollama", "model": "qwen3:8b", "temperature": 0.2 }
+  ]
+}

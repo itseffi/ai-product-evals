@@ -1,0 +1,47 @@
+{
+  "name": "LLM Model Comparison",
+  "description": "Compare response quality, latency, and cost across different LLM providers",
+  "test_cases": [
+    {
+      "name": "Technical Explanation - Transformers",
+      "system_prompt": "Answer directly and concisely. Do not explain your reasoning process.",
+      "prompt": "Explain how the attention mechanism works in transformer models. Be concise (3-4 sentences max).",
+      "expected_contains": ["attention", "query", "key"],
+      "criteria": ["accuracy", "conciseness"],
+      "max_tokens": 512
+    },
+    {
+      "name": "Code Generation - Python",
+      "system_prompt": "Output code only. No explanations.",
+      "prompt": "Write a Python function called `is_palindrome` that checks if a string is a palindrome. Just the function, no explanation.",
+      "expected_contains": ["def is_palindrome", "return"],
+      "criteria": ["correctness", "readability"],
+      "max_tokens": 512
+    },
+    {
+      "name": "Instruction Following",
+      "system_prompt": "Follow instructions exactly. Be concise.",
+      "prompt": "List exactly 3 benefits of unit testing. Format: numbered list, one line each.",
+      "expected_regex": "1\\..*\\n2\\..*\\n3\\.",
+      "criteria": ["instruction_following", "accuracy"],
+      "max_tokens": 512
+    },
+    {
+      "name": "Factual Knowledge",
+      "system_prompt": "Answer with just the requested information, nothing else.",
+      "prompt": "What year was Python first released? Answer with just the year.",
+      "expected_contains": ["1991"],
+      "max_tokens": 256
+    },
+    {
+      "name": "Reasoning",
+      "system_prompt": "Answer with just: Yes, No, or Cannot determine. Nothing else.",
+      "prompt": "If all roses are flowers and some flowers fade quickly, can we conclude that some roses fade quickly?",
+      "expected_contains": ["cannot determine"],
+      "max_tokens": 256
+    }
+  ],
+  "models": [
+    { "provider": "ollama", "model": "qwen3:8b", "temperature": 0.3 }
+  ]
+}

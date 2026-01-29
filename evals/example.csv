@@ -1,0 +1,5 @@
+name,prompt,expected,expected_contains,system_prompt,max_tokens
+Capital Question,What is the capital of France?,Paris,,Answer concisely.,100
+Math Problem,What is 15% of 80?,12,,Calculate and respond with just the number.,100
+List Languages,Name 3 programming languages.,,Python|JavaScript,List items directly.,200
+Greeting,Say hello in Spanish.,Hola,,Be brief.,50

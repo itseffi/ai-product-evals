@@ -1,0 +1,32 @@
+{
+  "name": "Quick Test",
+  "description": "Simple test to verify the eval runner works with scoring",
+  "test_cases": [
+    {
+      "name": "Math - Exact Answer",
+      "system_prompt": "Answer directly and concisely. Do not explain your reasoning.",
+      "prompt": "What is 2+2? Answer with just the number.",
+      "expected": "4",
+      "eval_type": "contains",
+      "max_tokens": 256
+    },
+    {
+      "name": "Tool Selection",
+      "system_prompt": "You have these tools:\n- get_weather(city): Get weather for a city\n- search(query): Search the web\n- calculate(expr): Do math\n\nRespond with: TOOL: tool_name(args)\nDo not explain, just output the tool call.",
+      "prompt": "What's the weather in Tokyo?",
+      "expected_tool": "get_weather",
+      "expected_args": ["Tokyo"],
+      "max_tokens": 256
+    },
+    {
+      "name": "Contains Check",
+      "system_prompt": "Answer directly and concisely.",
+      "prompt": "Name 3 programming languages.",
+      "expected_contains": ["Python", "JavaScript"],
+      "max_tokens": 256
+    }
+  ],
+  "models": [
+    { "provider": "ollama", "model": "qwen3:8b", "temperature": 0.1 }
+  ]
+}

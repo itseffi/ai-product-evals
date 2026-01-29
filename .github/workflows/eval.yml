@@ -1,0 +1,151 @@
+name: Run LLM Evaluations
+
+on:
+  # Run on push to main
+  push:
+    branches: [main, master]
+    paths:
+      - 'evals/**'
+      - 'evaluators/**'
+      - 'providers/**'
+      - 'run-eval.mjs'
+  
+  # Run on PR
+  pull_request:
+    branches: [main, master]
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      eval_file:
+        description: 'Eval file to run (e.g., evals/quick-test.json)'
+        required: false
+        default: 'evals/quick-test.json'
+      provider:
+        description: 'Provider to use'
+        required: false
+        default: 'openai'
+
+  # Scheduled runs (daily at 9am UTC)
+  schedule:
+    - cron: '0 9 * * *'
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  eval:
+    name: Run Evaluations
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run evaluations
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DEFAULT_PROVIDER: ${{ github.event.inputs.provider || 'openai' }}
+        run: |
+          EVAL_FILE="${{ github.event.inputs.eval_file || 'evals/quick-test.json' }}"
+          echo "Running eval: $EVAL_FILE"
+          node run-eval.mjs "$EVAL_FILE" --output eval-results.md
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: |
+            eval-results.md
+            traces/
+          retention-days: 30
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = fs.readFileSync('eval-results.md', 'utf8');
+            
+            // Extract summary section
+            const summaryMatch = results.match(/## Overall Results[\s\S]*?(?=##|$)/);
+            const summary = summaryMatch ? summaryMatch[0] : 'Results available in artifacts';
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## Eval Results\n\n${summary}\n\n[Full results in artifacts](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
+            });
+      
+      - name: Check for regressions
+        if: github.event_name == 'pull_request'
+        run: |
+          # Get previous trace from main branch (if exists)
+          # This is a placeholder - in practice you'd compare with baseline
+          echo "Checking for regressions..."
+          
+          # Fail if pass rate is below threshold
+          PASS_RATE=$(grep -oP 'Pass: \K\d+' eval-results.md | head -1 || echo "0")
+          TOTAL=$(grep -oP 'Total Requests: \K\d+' eval-results.md || echo "1")
+          
+          if [ "$TOTAL" -gt 0 ]; then
+            RATE=$((PASS_RATE * 100 / TOTAL))
+            echo "Pass rate: $RATE%"
+            
+            THRESHOLD="${{ vars.EVAL_PASS_THRESHOLD || 70 }}"
+            if [ "$RATE" -lt "$THRESHOLD" ]; then
+              echo "::error::Pass rate $RATE% is below threshold $THRESHOLD%"
+              exit 1
+            fi
+          fi
+
+  compare:
+    name: Compare Models
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    
+    strategy:
+      matrix:
+        provider: [openai, anthropic]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run eval with ${{ matrix.provider }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          node run-eval.mjs evals/llm-comparison.json \
+            --provider ${{ matrix.provider }} \
+            --output results-${{ matrix.provider }}.md
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.provider }}
+          path: results-${{ matrix.provider }}.md

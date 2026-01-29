@@ -1,0 +1,39 @@
+{
+  "name": "System Prompt Variants",
+  "description": "Test how different system prompts affect response quality",
+  "test_cases": [
+    {
+      "name": "No System Prompt",
+      "prompt": "Explain what Docker is in 2 sentences.",
+      "expected_contains": ["container", "application"],
+      "max_tokens": 150
+    },
+    {
+      "name": "Expert Persona",
+      "system_prompt": "You are a senior DevOps engineer with 15 years of experience. Be concise and practical.",
+      "prompt": "Explain what Docker is in 2 sentences.",
+      "expected_contains": ["container"],
+      "criteria": ["conciseness", "expertise"],
+      "max_tokens": 150
+    },
+    {
+      "name": "Beginner-Friendly",
+      "system_prompt": "You are a patient teacher explaining to someone new to programming. Use simple analogies, avoid jargon.",
+      "prompt": "Explain what Docker is in 2 sentences.",
+      "expected_contains": ["container"],
+      "criteria": ["simplicity", "clarity"],
+      "max_tokens": 200
+    },
+    {
+      "name": "Structured Output",
+      "system_prompt": "Always respond in this format:\nSUMMARY: (one line)\nDETAILS: (2-3 bullet points)",
+      "prompt": "Explain what Docker is.",
+      "expected_regex": "SUMMARY:.*DETAILS:",
+      "criteria": ["instruction_following"],
+      "max_tokens": 250
+    }
+  ],
+  "models": [
+    { "provider": "ollama", "model": "qwen3:8b", "temperature": 0.5 }
+  ]
+}

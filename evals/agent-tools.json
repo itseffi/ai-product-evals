@@ -1,0 +1,48 @@
+{
+  "name": "Agent Tool Selection",
+  "description": "Evaluate LLM ability to select and use appropriate tools",
+  "test_cases": [
+    {
+      "name": "Weather Query",
+      "system_prompt": "You have access to these tools:\n- search(query): Search the web\n- get_weather(city): Get current weather\n- calculate(expression): Evaluate math\n- send_email(to, subject, body): Send email\n\nRespond with: TOOL: tool_name(args)\nIf no tool needed: TOOL: none\nDo not explain, just output the tool call.",
+      "prompt": "What's the weather in San Francisco?",
+      "expected_tool": "get_weather",
+      "expected_args": ["San Francisco"],
+      "max_tokens": 256
+    },
+    {
+      "name": "Math Calculation",
+      "system_prompt": "You have access to these tools:\n- search(query): Search the web\n- get_weather(city): Get current weather\n- calculate(expression): Evaluate math\n- send_email(to, subject, body): Send email\n\nRespond with: TOOL: tool_name(args)\nIf no tool needed: TOOL: none\nDo not explain, just output the tool call.",
+      "prompt": "What is 145 * 37?",
+      "expected_tool": "calculate",
+      "expected_args": ["145", "37"],
+      "max_tokens": 256
+    },
+    {
+      "name": "Web Search",
+      "system_prompt": "You have access to these tools:\n- search(query): Search the web\n- get_weather(city): Get current weather\n- calculate(expression): Evaluate math\n- send_email(to, subject, body): Send email\n\nRespond with: TOOL: tool_name(args)\nIf no tool needed: TOOL: none\nDo not explain, just output the tool call.",
+      "prompt": "Find the latest news about AI regulations",
+      "expected_tool": "search",
+      "expected_args": ["AI regulations"],
+      "max_tokens": 256
+    },
+    {
+      "name": "No Tool Needed",
+      "system_prompt": "You have access to these tools:\n- search(query): Search the web\n- get_weather(city): Get current weather\n- calculate(expression): Evaluate math\n\nRespond with: TOOL: tool_name(args)\nIf no tool needed: TOOL: none\nDo not explain, just output the tool call.",
+      "prompt": "What is the capital of France?",
+      "expected_tool": "none",
+      "max_tokens": 256
+    },
+    {
+      "name": "Email Composition",
+      "system_prompt": "You have access to these tools:\n- search(query): Search the web\n- get_weather(city): Get current weather\n- send_email(to, subject, body): Send email\n\nRespond with: TOOL: tool_name(args)\nDo not explain, just output the tool call.",
+      "prompt": "Send an email to john@example.com with subject 'Meeting' saying we need to reschedule",
+      "expected_tool": "send_email",
+      "expected_args": ["john@example.com", "Meeting"],
+      "max_tokens": 256
+    }
+  ],
+  "models": [
+    { "provider": "ollama", "model": "qwen3:8b", "temperature": 0.1 }
+  ]
+}

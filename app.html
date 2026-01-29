@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Data Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f9fafb;
+      --bg-tertiary: #f3f4f6;
+      --bg-card: #ffffff;
+      --border: #e5e7eb;
+      --text: #111827;
+      --text-secondary: #4b5563;
+      --text-muted: #9ca3af;
+      --primary: #5e6ad2;
+      --success: #5e6ad2;
+      --error: #f581a3;
+      --warning: #d97706;
+      --purple: #5e6ad2;
+      --dark: #2e2e2e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    /* Header */
+    .header {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .header p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn:hover {
+      background: var(--bg-tertiary);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .btn-primary:hover {
+      background: #4f5bc4;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+      border-color: var(--success);
+    }
+
+    .btn-success:hover {
+      background: #4f5bc4;
+    }
+
+    .btn-error {
+      background: var(--error);
+      color: white;
+      border-color: var(--error);
+    }
+
+    .btn-error:hover {
+      background: #e86d91;
+    }
+
+    .btn-dark {
+      background: var(--dark);
+      color: white;
+      border-color: var(--dark);
+    }
+
+    .btn-dark:hover {
+      background: #1a1a1a;
+    }
+    
+    /* Layout */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 32px;
+      background: var(--bg);
+    }
+    
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+
+    .dashboard-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 24px;
+    }
+    
+    /* Charts Sidebar */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .chart-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .chart-card h3 {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .tooltip-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      background: var(--border);
+      border-radius: 50%;
+      font-size: 10px;
+      cursor: help;
+      position: relative;
+    }
+    
+    .tooltip-icon:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 50%;
+      bottom: 100%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 400;
+      white-space: normal;
+      max-width: 200px;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      z-index: 100;
+    }
+    
+    .tooltip-icon:hover::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: 100%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1f2937;
+      margin-bottom: -4px;
+      z-index: 100;
+    }
+    
+    .chart-container {
+      height: 150px;
+    }
+    
+    /* Main Content */
+    .main-content {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 28px;
+      min-height: 500px;
+    }
+    
+    /* Filters */
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .filter-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    
+    .filter-group select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .filter-group select:hover {
+      border-color: var(--text-muted);
+    }
+
+    .filter-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    /* Record Header */
+    .record-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    
+    .record-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .record-count {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    
+    .badge {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .badge-pending {
+      background: rgba(156, 163, 175, 0.15);
+      color: #6b7280;
+    }
+
+    .badge-accepted {
+      background: rgba(94, 106, 210, 0.1);
+      color: var(--success);
+    }
+
+    .badge-rejected {
+      background: rgba(245, 129, 163, 0.1);
+      color: var(--error);
+    }
+
+    /* Record Tags */
+    .record-tags {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .record-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .record-tag strong {
+      color: var(--text);
+      margin-right: 4px;
+    }
+
+    /* Message Step Counter */
+    .message-step {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    /* Function Call Styling */
+    .chat-bubble.function-call {
+      background: rgba(94, 106, 210, 0.06);
+      border: 1px solid rgba(94, 106, 210, 0.2);
+    }
+
+    .chat-bubble.function-call .function-name {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+
+    .chat-bubble.function-results {
+      background: rgba(94, 106, 210, 0.08);
+      border: 1px solid rgba(94, 106, 210, 0.2);
+    }
+
+    .chat-bubble .code-block {
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      padding: 12px;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Stats Table */
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      table-layout: fixed;
+    }
+
+    .stats-table th,
+    .stats-table td {
+      padding: 6px 4px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stats-table th {
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      font-size: 9px;
+    }
+
+    .stats-table td {
+      color: var(--text);
+    }
+
+    .stats-table th:nth-child(1),
+    .stats-table td:nth-child(1) {
+      width: 35%;
+    }
+
+    .stats-table th:nth-child(2),
+    .stats-table td:nth-child(2) {
+      width: 30%;
+    }
+
+    .stats-table th:nth-child(3),
+    .stats-table td:nth-child(3),
+    .stats-table th:nth-child(4),
+    .stats-table td:nth-child(4) {
+      width: 17%;
+      text-align: center;
+    }
+
+    .stats-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .nav-buttons {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .nav-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+
+    .nav-btn:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    
+    /* Tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    
+    .tab {
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s ease;
+    }
+
+    .tab:hover {
+      color: var(--text);
+    }
+
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    
+    /* Chat View */
+    .chat-section {
+      margin-bottom: 24px;
+    }
+    
+    .chat-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    
+    .chat-bubble {
+      padding: 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .chat-bubble.user {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .chat-bubble.assistant {
+      background: rgba(94, 106, 210, 0.04);
+      border: 1px solid rgba(94, 106, 210, 0.15);
+    }
+
+    .chat-bubble.model-eval {
+      background: rgba(94, 106, 210, 0.04);
+      border: 1px solid rgba(94, 106, 210, 0.15);
+    }
+    
+    /* Editable Output */
+    .editable-section {
+      margin-bottom: 24px;
+    }
+    
+    .editable-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    
+    .editable-textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      line-height: 1.6;
+      resize: vertical;
+      background: var(--bg);
+      transition: border-color 0.15s ease;
+    }
+
+    .editable-textarea:hover {
+      border-color: var(--text-muted);
+    }
+
+    .editable-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    /* Critique Section */
+    .critique-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .critique-card {
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-secondary);
+    }
+
+    .critique-card h4 {
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .critique-card p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    
+    .outcome-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .outcome-good {
+      background: rgba(94, 106, 210, 0.1);
+      color: var(--success);
+    }
+
+    .outcome-bad {
+      background: rgba(245, 129, 163, 0.1);
+      color: var(--error);
+    }
+    
+    /* Actions */
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+    }
+    
+    /* Metadata Tab */
+    .metadata-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    
+    .metadata-item {
+      padding: 16px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .metadata-item label {
+      font-size: 10px;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .metadata-item span {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 64px 48px;
+      color: var(--text-muted);
+    }
+
+    .empty-state h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text);
+      text-transform: none;
+      letter-spacing: -0.01em;
+    }
+
+    .empty-state p {
+      font-size: 13px;
+    }
+    
+    /* Hidden file input */
+    .file-input { display: none; }
+    
+    /* Stats Row - aligned with grid below */
+    .stats-row {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .stats-left {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .stats-right {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    
+    .stat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <h1>LLM Data Review</h1>
+        <p>Review and label LLM interactions</p>
+      </div>
+      <div class="header-actions">
+        <label class="btn">
+          Upload Data
+          <input type="file" class="file-input" id="uploadInput" accept=".json,.csv" multiple>
+        </label>
+        <button class="btn btn-dark" id="downloadBtn">Download Labeled Data</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="dashboard-header">
+      <h2>Dashboard</h2>
+      <button class="btn" id="viewReportsBtn">View Reports</button>
+    </div>
+
+    <!-- Stats Row - aligned with grid below -->
+    <div class="stats-row">
+      <div class="stats-left">
+        <div class="stat-card">
+          <div class="stat-value" id="totalRecords">0</div>
+          <div class="stat-label">Total Records</div>
+        </div>
+      </div>
+      <div class="stats-right">
+        <div class="stat-card">
+          <div class="stat-value" id="pendingCount">0</div>
+          <div class="stat-label">Pending Review</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="agreementRate">0%</div>
+          <div class="stat-label">Agreement Rate</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="acceptanceRate">0%</div>
+          <div class="stat-label">Acceptance Rate</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Sidebar with Charts -->
+      <aside class="sidebar">
+        <div class="chart-card">
+          <h3>LLM <> Human Agreement Rate <span class="tooltip-icon" data-tooltip="Percentage where model outcome matches human outcome">?</span></h3>
+          <div class="chart-container">
+            <canvas id="agreementChart"></canvas>
+          </div>
+        </div>
+        
+        <div class="chart-card">
+          <h3>Human Acceptance Rate <span class="tooltip-icon" data-tooltip="Percentage of records accepted by humans">?</span></h3>
+          <div class="chart-container">
+            <canvas id="acceptanceChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>Stats</h3>
+          <table class="stats-table" id="statsTable">
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th>Scenario</th>
+                <th>Pending</th>
+                <th>Rejected</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No data</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Filters -->
+        <div class="filters" id="filtersSection">
+          <div class="filter-group">
+            <label>Tool</label>
+            <select id="filterTool">
+              <option value="">All Tools</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Scenario</label>
+            <select id="filterScenario">
+              <option value="">All Scenarios</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Status</label>
+            <select id="filterStatus">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Data Source</label>
+            <select id="filterSource">
+              <option value="">All Sources</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Record Tags -->
+        <div class="record-tags" id="recordTags">
+          <span class="record-tag"><strong>Tool:</strong> None</span>
+          <span class="record-tag"><strong>Scenario:</strong> None</span>
+          <span class="record-tag"><strong>Source:</strong> Unknown</span>
+        </div>
+
+        <!-- Record Header -->
+        <div class="record-header">
+          <div class="record-info">
+            <span class="record-count" id="recordCount">Record 0 of 0</span>
+            <span class="badge badge-pending" id="statusBadge">Pending</span>
+          </div>
+          <div class="nav-buttons">
+            <button class="nav-btn" id="prevBtn" disabled>Previous</button>
+            <button class="nav-btn" id="nextBtn" disabled>Next</button>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <div class="tab active" data-tab="chat">Chat</div>
+          <div class="tab" data-tab="functions">Functions</div>
+          <div class="tab" data-tab="metadata">Metadata</div>
+        </div>
+
+        <!-- Tab Content -->
+        <div id="tabContent">
+          <div class="empty-state">
+            <h3>No Data Loaded</h3>
+            <p>Upload trace files or CSV data to start reviewing</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let records = [];
+    let currentIndex = 0;
+    let filters = { tool: '', scenario: '', status: '', source: '' };
+    
+    // Charts
+    let agreementChart, acceptanceChart;
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      setupEventListeners();
+    });
+    
+    function initCharts() {
+      const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { 
+            beginAtZero: true, 
+            max: 100,
+            ticks: { callback: v => v + '%' }
+          },
+          x: { display: true }
+        },
+        elements: {
+          line: { tension: 0.3 },
+          point: { radius: 4 }
+        }
+      };
+      
+      agreementChart = new Chart(document.getElementById('agreementChart'), {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            borderColor: '#8b5cf6',
+            backgroundColor: 'rgba(139, 92, 246, 0.08)',
+            fill: true,
+            borderWidth: 2
+          }]
+        },
+        options: chartOptions
+      });
+
+      acceptanceChart = new Chart(document.getElementById('acceptanceChart'), {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.08)',
+            fill: true,
+            borderWidth: 2
+          }]
+        },
+        options: chartOptions
+      });
+    }
+    
+    function setupEventListeners() {
+      // File upload
+      document.getElementById('uploadInput').addEventListener('change', handleFileUpload);
+      
+      // Download
+      document.getElementById('downloadBtn').addEventListener('click', downloadData);
+      
+      // Navigation
+      document.getElementById('prevBtn').addEventListener('click', () => navigate(-1));
+      document.getElementById('nextBtn').addEventListener('click', () => navigate(1));
+      
+      // Tabs
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+      });
+      
+      // Filters
+      ['filterTool', 'filterScenario', 'filterStatus', 'filterSource'].forEach(id => {
+        document.getElementById(id).addEventListener('change', applyFilters);
+      });
+      
+      // View Reports
+      document.getElementById('viewReportsBtn').addEventListener('click', showReports);
+    }
+    
+    function showReports() {
+      const reviewed = records.filter(r => r.status !== 'pending');
+      const accepted = records.filter(r => r.status === 'accepted');
+      const rejected = records.filter(r => r.status === 'rejected');
+      const agreed = records.filter(r => r.agreement === true);
+      
+      const agreementRate = reviewed.length > 0 ? (agreed.length / reviewed.length * 100).toFixed(1) : 0;
+      const acceptanceRate = reviewed.length > 0 ? (accepted.length / reviewed.length * 100).toFixed(1) : 0;
+      
+      // Group by model outcome
+      const modelGood = records.filter(r => r.modelOutcome === 'good').length;
+      const modelBad = records.filter(r => r.modelOutcome === 'bad').length;
+      
+      // Group by source
+      const bySource = {};
+      records.forEach(r => {
+        const src = r.source || 'Unknown';
+        if (!bySource[src]) bySource[src] = { total: 0, accepted: 0, rejected: 0 };
+        bySource[src].total++;
+        if (r.status === 'accepted') bySource[src].accepted++;
+        if (r.status === 'rejected') bySource[src].rejected++;
+      });
+      
+      const sourceRows = Object.entries(bySource).map(([src, data]) => `
+        <tr>
+          <td style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">${src}</td>
+          <td style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">${data.total}</td>
+          <td style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">${data.accepted}</td>
+          <td style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">${data.rejected}</td>
+          <td style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">${data.total > 0 ? ((data.accepted / data.total) * 100).toFixed(0) : 0}%</td>
+        </tr>
+      `).join('');
+      
+      // Create modal
+      const modal = document.createElement('div');
+      modal.id = 'reportsModal';
+      modal.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5); display: flex; align-items: center;
+        justify-content: center; z-index: 1000;
+      `;
+      modal.innerHTML = `
+        <div style="background: white; border-radius: 12px; padding: 32px; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <h2 style="font-size: 24px; font-weight: 600;">Evaluation Reports</h2>
+            <button onclick="closeReports()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px;">
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 32px; font-weight: 700; color: #5e6ad2;">${records.length}</div>
+              <div style="font-size: 12px; color: #64748b;">Total Records</div>
+            </div>
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 32px; font-weight: 700; color: #5e6ad2;">${reviewed.length}</div>
+              <div style="font-size: 12px; color: #64748b;">Reviewed</div>
+            </div>
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 32px; font-weight: 700; color: #5e6ad2;">${agreementRate}%</div>
+              <div style="font-size: 12px; color: #64748b;">Agreement Rate</div>
+            </div>
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 32px; font-weight: 700; color: #5e6ad2;">${acceptanceRate}%</div>
+              <div style="font-size: 12px; color: #64748b;">Acceptance Rate</div>
+            </div>
+          </div>
+          
+          <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">Model vs Human Outcomes</h3>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 32px;">
+            <div style="background: rgba(94, 106, 210, 0.1); padding: 16px; border-radius: 8px;">
+              <div style="font-size: 14px; color: #5e6ad2; margin-bottom: 8px;">Model rated "Good"</div>
+              <div style="font-size: 24px; font-weight: 600;">${modelGood} <span style="font-size: 14px; color: #64748b;">(${records.length > 0 ? (modelGood/records.length*100).toFixed(0) : 0}%)</span></div>
+            </div>
+            <div style="background: #ffc5cf; padding: 16px; border-radius: 8px;">
+              <div style="font-size: 14px; color: #111827; margin-bottom: 8px;">Model rated "Bad"</div>
+              <div style="font-size: 24px; font-weight: 600;">${modelBad} <span style="font-size: 14px; color: #64748b;">(${records.length > 0 ? (modelBad/records.length*100).toFixed(0) : 0}%)</span></div>
+            </div>
+          </div>
+          
+          <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">Results by Source</h3>
+          <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+              <tr style="background: #f8fafc;">
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Source</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Total</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Accepted</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Rejected</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Accept Rate</th>
+              </tr>
+            </thead>
+            <tbody style="text-align: left;">
+              ${sourceRows || '<tr><td colspan="5" style="padding: 12px; text-align: center; color: #64748b;">No data</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeReports();
+      });
+    }
+    
+    function closeReports() {
+      const modal = document.getElementById('reportsModal');
+      if (modal) modal.remove();
+    }
+    
+    async function handleFileUpload(e) {
+      const files = Array.from(e.target.files);
+      
+      for (const file of files) {
+        const text = await file.text();
+        
+        if (file.name.endsWith('.csv')) {
+          parseCSV(text);
+        } else if (file.name.endsWith('.json')) {
+          parseJSON(text, file.name);
+        }
+      }
+      
+      updateUI();
+      e.target.value = '';
+    }
+    
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        const record = {
+          id: `csv-${Date.now()}-${i}`,
+          iteration: parseInt(values[headers.indexOf('Iteration')] || '1'),
+          modelResponse: values[headers.indexOf('Model response')] || '',
+          modelCritique: values[headers.indexOf('Model critique')] || '',
+          modelOutcome: values[headers.indexOf('Model outcome')] || '',
+          humanCritique: values[headers.indexOf('Human critique')] || '',
+          humanOutcome: values[headers.indexOf('Human outcome')] || '',
+          humanRevisedResponse: values[headers.indexOf('Human revised response')] || '',
+          agreement: values[headers.indexOf('Agreement')]?.toUpperCase() === 'TRUE',
+          status: values[headers.indexOf('Human outcome')] ? 
+            (values[headers.indexOf('Human outcome')] === 'good' ? 'accepted' : 'rejected') : 'pending',
+          source: 'csv',
+          timestamp: new Date().toISOString(),
+        };
+        records.push(record);
+      }
+    }
+    
+    function parseCSVLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    }
+    
+    function parseJSON(text, filename) {
+      const data = JSON.parse(text);
+      
+      // Handle trace format
+      if (data.results && Array.isArray(data.results)) {
+        data.results.forEach((r, i) => {
+          records.push({
+            id: `${data.id || filename}-${i}`,
+            prompt: r.request?.prompt || '',
+            systemPrompt: r.request?.systemPrompt || '',
+            modelResponse: r.response?.text || '',
+            modelCritique: r.evalReason || '',
+            modelOutcome: r.pass ? 'good' : 'bad',
+            humanCritique: '',
+            humanOutcome: '',
+            humanRevisedResponse: '',
+            agreement: null,
+            status: 'pending',
+            source: filename,
+            testCase: r.testCase,
+            model: r.model,
+            provider: r.provider,
+            latencyMs: r.latencyMs,
+            score: r.score,
+            timestamp: r.timestamp || new Date().toISOString(),
+          });
+        });
+      }
+    }
+    
+    function updateUI() {
+      updateStats();
+      updateCharts();
+      updateFilters();
+      updateStatsTable();
+      renderCurrentRecord();
+    }
+
+    function updateStatsTable() {
+      const table = document.getElementById('statsTable');
+      if (!table) return;
+      
+      // Group by tool and scenario
+      const groups = {};
+      records.forEach(r => {
+        const tool = r.testCase || 'Unknown';
+        const scenario = r.scenario || 'None';
+        const key = `${tool}|${scenario}`;
+        
+        if (!groups[key]) {
+          groups[key] = { tool, scenario, pending: 0, rejected: 0 };
+        }
+        if (r.status === 'pending') groups[key].pending++;
+        if (r.status === 'rejected') groups[key].rejected++;
+      });
+      
+      const rows = Object.values(groups);
+      
+      if (rows.length === 0) {
+        table.querySelector('tbody').innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No data</td></tr>';
+        return;
+      }
+      
+      table.querySelector('tbody').innerHTML = rows.map(row => `
+        <tr>
+          <td>${escapeHtml(row.tool)}</td>
+          <td>${escapeHtml(row.scenario)}</td>
+          <td>${row.pending}</td>
+          <td>${row.rejected}</td>
+        </tr>
+      `).join('');
+    }
+    
+    function updateStats() {
+      const filtered = getFilteredRecords();
+      const reviewed = filtered.filter(r => r.status !== 'pending');
+      const accepted = filtered.filter(r => r.status === 'accepted');
+      const agreed = filtered.filter(r => r.agreement === true);
+      
+      document.getElementById('totalRecords').textContent = filtered.length;
+      document.getElementById('pendingCount').textContent = filtered.filter(r => r.status === 'pending').length;
+      document.getElementById('agreementRate').textContent = reviewed.length > 0 
+        ? Math.round(agreed.length / reviewed.length * 100) + '%' 
+        : '0%';
+      document.getElementById('acceptanceRate').textContent = reviewed.length > 0 
+        ? Math.round(accepted.length / reviewed.length * 100) + '%' 
+        : '0%';
+    }
+    
+    function updateCharts() {
+      // Group by date
+      const byDate = {};
+      records.forEach(r => {
+        const date = r.timestamp?.split('T')[0] || 'Unknown';
+        if (!byDate[date]) byDate[date] = { total: 0, agreed: 0, accepted: 0, reviewed: 0 };
+        byDate[date].total++;
+        if (r.status !== 'pending') {
+          byDate[date].reviewed++;
+          if (r.agreement) byDate[date].agreed++;
+          if (r.status === 'accepted') byDate[date].accepted++;
+        }
+      });
+      
+      const dates = Object.keys(byDate).sort();
+      const agreementData = dates.map(d => byDate[d].reviewed > 0 ? Math.round(byDate[d].agreed / byDate[d].reviewed * 100) : 0);
+      const acceptanceData = dates.map(d => byDate[d].reviewed > 0 ? Math.round(byDate[d].accepted / byDate[d].reviewed * 100) : 0);
+      
+      agreementChart.data.labels = dates;
+      agreementChart.data.datasets[0].data = agreementData;
+      agreementChart.update();
+      
+      acceptanceChart.data.labels = dates;
+      acceptanceChart.data.datasets[0].data = acceptanceData;
+      acceptanceChart.update();
+    }
+    
+    function updateFilters() {
+      const tools = [...new Set(records.map(r => r.testCase).filter(Boolean))];
+      const scenarios = [...new Set(records.map(r => r.scenario).filter(Boolean))];
+      const sources = [...new Set(records.map(r => r.source).filter(Boolean))];
+      
+      updateSelect('filterTool', tools);
+      updateSelect('filterScenario', scenarios);
+      updateSelect('filterSource', sources);
+    }
+    
+    function updateSelect(id, options) {
+      const select = document.getElementById(id);
+      const current = select.value;
+      select.innerHTML = `<option value="">All</option>`;
+      options.forEach(opt => {
+        select.innerHTML += `<option value="${opt}">${opt}</option>`;
+      });
+      select.value = current;
+    }
+    
+    function getFilteredRecords() {
+      return records.filter(r => {
+        if (filters.tool && r.testCase !== filters.tool) return false;
+        if (filters.scenario && r.scenario !== filters.scenario) return false;
+        if (filters.status && r.status !== filters.status) return false;
+        if (filters.source && r.source !== filters.source) return false;
+        return true;
+      });
+    }
+    
+    function applyFilters() {
+      filters.tool = document.getElementById('filterTool').value;
+      filters.scenario = document.getElementById('filterScenario').value;
+      filters.status = document.getElementById('filterStatus').value;
+      filters.source = document.getElementById('filterSource').value;
+      currentIndex = 0;
+      updateUI();
+    }
+    
+    function navigate(delta) {
+      const filtered = getFilteredRecords();
+      currentIndex = Math.max(0, Math.min(filtered.length - 1, currentIndex + delta));
+      renderCurrentRecord();
+    }
+    
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+      renderCurrentRecord();
+    }
+    
+    function renderCurrentRecord() {
+      const filtered = getFilteredRecords();
+      const record = filtered[currentIndex];
+      const activeTab = document.querySelector('.tab.active').dataset.tab;
+      
+      // Update navigation
+      document.getElementById('prevBtn').disabled = currentIndex === 0;
+      document.getElementById('nextBtn').disabled = currentIndex >= filtered.length - 1;
+      document.getElementById('recordCount').textContent = `Record ${currentIndex + 1} of ${filtered.length}`;
+      
+      if (!record) {
+        document.getElementById('tabContent').innerHTML = `
+          <div class="empty-state">
+            <h3>No Data Loaded</h3>
+            <p>Upload trace files or CSV data to start reviewing</p>
+          </div>
+        `;
+        return;
+      }
+      
+      // Update status badge
+      const badge = document.getElementById('statusBadge');
+      badge.className = `badge badge-${record.status}`;
+      badge.textContent = record.status.charAt(0).toUpperCase() + record.status.slice(1);
+      
+      // Update record tags
+      const tagsContainer = document.getElementById('recordTags');
+      if (tagsContainer) {
+        tagsContainer.innerHTML = `
+          <span class="record-tag"><strong>Tool:</strong> ${record.testCase || 'None'}</span>
+          <span class="record-tag"><strong>Scenario:</strong> ${record.scenario || 'None'}</span>
+          <span class="record-tag"><strong>Source:</strong> ${record.source || 'Unknown'}</span>
+        `;
+      }
+      
+      // Render tab content
+      if (activeTab === 'chat') {
+        renderChatTab(record);
+      } else if (activeTab === 'functions') {
+        renderFunctionsTab(record);
+      } else {
+        renderMetadataTab(record);
+      }
+    }
+    
+    function renderChatTab(record) {
+      const content = document.getElementById('tabContent');
+      
+      // Build messages array for step counting
+      const messages = [];
+      let stepNum = 0;
+      
+      if (record.systemPrompt) {
+        messages.push({ type: 'system', content: record.systemPrompt, step: ++stepNum });
+      }
+      if (record.prompt) {
+        messages.push({ type: 'user', content: record.prompt, step: ++stepNum });
+      }
+      
+      // Check for function calls in response
+      const toolMatch = record.modelResponse?.match(/TOOL:\s*(\w+)\s*\(([^)]*)\)/i);
+      if (toolMatch) {
+        messages.push({ type: 'function-call', name: toolMatch[1], args: toolMatch[2], step: ++stepNum });
+        if (record.functionResult) {
+          messages.push({ type: 'function-results', content: record.functionResult, step: ++stepNum });
+        }
+      }
+      
+      if (record.modelResponse) {
+        messages.push({ type: 'assistant', content: record.modelResponse, step: ++stepNum });
+      }
+      
+      const totalSteps = stepNum;
+      
+      let messagesHtml = messages.map(msg => {
+        const stepCounter = `<span class="message-step">(${msg.step}/${totalSteps})</span>`;
+        
+        if (msg.type === 'system') {
+          return `
+            <div class="chat-section">
+              <div class="chat-label">System Prompt ${stepCounter}</div>
+              <div class="chat-bubble user">${escapeHtml(msg.content)}</div>
+            </div>
+          `;
+        } else if (msg.type === 'user') {
+          return `
+            <div class="chat-section">
+              <div class="chat-label">USER ${stepCounter}</div>
+              <div class="chat-bubble user">${escapeHtml(msg.content)}</div>
+            </div>
+          `;
+        } else if (msg.type === 'function-call') {
+          return `
+            <div class="chat-section">
+              <div class="chat-label">ASSISTANT - Function Call ${stepCounter}</div>
+              <div class="chat-bubble function-call">
+                <div class="function-name">${escapeHtml(msg.name)}(${escapeHtml(msg.args || '')})</div>
+              </div>
+            </div>
+          `;
+        } else if (msg.type === 'function-results') {
+          return `
+            <div class="chat-section">
+              <div class="chat-label">FUNCTION RESULTS ${stepCounter}</div>
+              <div class="chat-bubble function-results">
+                <div class="code-block">${escapeHtml(msg.content)}</div>
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="chat-section">
+              <div class="chat-label">ASSISTANT ${stepCounter}</div>
+              <div class="chat-bubble assistant">${escapeHtml(msg.content || '(no response)')}</div>
+            </div>
+          `;
+        }
+      }).join('');
+      
+      // Fallback if no messages
+      if (messages.length === 0) {
+        messagesHtml = `
+          <div class="chat-section">
+            <div class="chat-label">Assistant</div>
+            <div class="chat-bubble assistant">${escapeHtml(record.modelResponse || '(no response)')}</div>
+          </div>
+        `;
+      }
+      
+      content.innerHTML = `
+        ${messagesHtml}
+        
+        <div class="critique-grid">
+          <div class="critique-card">
+            <h4>MODEL EVALUATION</h4>
+            <p>${escapeHtml(record.modelCritique || 'No model critique')}</p>
+            <span class="outcome-badge outcome-${record.modelOutcome || 'pending'}">
+              ${record.modelOutcome || 'Pending'}
+            </span>
+          </div>
+          <div class="critique-card">
+            <h4>HUMAN EVALUATION</h4>
+            <textarea class="editable-textarea" id="humanCritique" placeholder="Enter your critique...">${escapeHtml(record.humanCritique || '')}</textarea>
+          </div>
+        </div>
+        
+        <div class="editable-section">
+          <div class="editable-label">Editable Output (Human Revised Response)</div>
+          <textarea class="editable-textarea" id="revisedResponse" placeholder="Edit the response if needed...">${escapeHtml(record.humanRevisedResponse || record.modelResponse || '')}</textarea>
+        </div>
+        
+        <div class="actions">
+          <button class="btn" onclick="resetRecord()">Reset</button>
+          <div class="action-buttons">
+            <button class="btn btn-error" onclick="rejectRecord()">Reject</button>
+            <button class="btn btn-success" onclick="acceptRecord()">Accept</button>
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderFunctionsTab(record) {
+      const content = document.getElementById('tabContent');
+      let functionsHtml = '<p>No function calls detected.</p>';
+      
+      // Try to parse function calls from response
+      const toolMatch = record.modelResponse?.match(/TOOL:\s*(\w+)\s*\(([^)]*)\)/i);
+      if (toolMatch) {
+        functionsHtml = `
+          <div class="metadata-item">
+            <label>Function Name</label>
+            <span>${toolMatch[1]}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Arguments</label>
+            <span>${toolMatch[2] || 'none'}</span>
+          </div>
+        `;
+      }
+      
+      content.innerHTML = `
+        <div class="metadata-grid">
+          ${functionsHtml}
+        </div>
+      `;
+    }
+    
+    function renderMetadataTab(record) {
+      const content = document.getElementById('tabContent');
+      content.innerHTML = `
+        <div class="metadata-grid">
+          <div class="metadata-item">
+            <label>Record ID</label>
+            <span>${record.id}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Model</label>
+            <span>${record.model || 'N/A'}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Provider</label>
+            <span>${record.provider || 'N/A'}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Latency</label>
+            <span>${record.latencyMs ? record.latencyMs + 'ms' : 'N/A'}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Score</label>
+            <span>${record.score !== undefined ? (record.score * 100).toFixed(0) + '%' : 'N/A'}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Source</label>
+            <span>${record.source || 'N/A'}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Timestamp</label>
+            <span>${record.timestamp || 'N/A'}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Agreement</label>
+            <span>${record.agreement === true ? '✓ Yes' : record.agreement === false ? '✗ No' : 'Pending'}</span>
+          </div>
+        </div>
+      `;
+    }
+    
+    function acceptRecord() {
+      const filtered = getFilteredRecords();
+      const record = filtered[currentIndex];
+      if (!record) return;
+      
+      record.status = 'accepted';
+      record.humanOutcome = 'good';
+      record.humanCritique = document.getElementById('humanCritique')?.value || '';
+      record.humanRevisedResponse = document.getElementById('revisedResponse')?.value || '';
+      record.agreement = record.modelOutcome === 'good';
+      record.reviewedAt = new Date().toISOString();
+      
+      updateUI();
+      if (currentIndex < filtered.length - 1) navigate(1);
+    }
+    
+    function rejectRecord() {
+      const filtered = getFilteredRecords();
+      const record = filtered[currentIndex];
+      if (!record) return;
+      
+      record.status = 'rejected';
+      record.humanOutcome = 'bad';
+      record.humanCritique = document.getElementById('humanCritique')?.value || '';
+      record.humanRevisedResponse = document.getElementById('revisedResponse')?.value || '';
+      record.agreement = record.modelOutcome === 'bad';
+      record.reviewedAt = new Date().toISOString();
+      
+      updateUI();
+      if (currentIndex < filtered.length - 1) navigate(1);
+    }
+    
+    function resetRecord() {
+      const filtered = getFilteredRecords();
+      const record = filtered[currentIndex];
+      if (!record) return;
+      
+      record.status = 'pending';
+      record.humanOutcome = '';
+      record.humanCritique = '';
+      record.humanRevisedResponse = '';
+      record.agreement = null;
+      record.reviewedAt = null;
+      
+      updateUI();
+    }
+    
+    function downloadData() {
+      // Generate CSV in the template format
+      const headers = ['Iteration', 'Model response', 'Model critique', 'Model outcome', 'Human critique', 'Human outcome', 'Human revised response', 'Agreement'];
+      const rows = records.map((r, i) => [
+        r.iteration || i + 1,
+        escapeCSV(r.modelResponse),
+        escapeCSV(r.modelCritique),
+        r.modelOutcome || '',
+        escapeCSV(r.humanCritique),
+        r.humanOutcome || '',
+        escapeCSV(r.humanRevisedResponse),
+        r.agreement === true ? 'TRUE' : r.agreement === false ? 'FALSE' : ''
+      ]);
+      
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `labeled_data_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    
+    function escapeCSV(str) {
+      if (!str) return '';
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    }
+    
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/\n/g, '<br>');
+    }
+  </script>
+</body>
+</html>

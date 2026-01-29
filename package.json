@@ -1,0 +1,29 @@
+{
+  "name": "ai-product-evals",
+  "version": "1.0.0",
+  "description": "AI Product Evaluation Runner - Compare LLMs, test prompts, evaluate RAG pipelines and AI agents",
+  "type": "module",
+  "main": "run-eval.mjs",
+  "scripts": {
+    "eval": "node run-eval.mjs",
+    "eval:llm": "node run-eval.mjs evals/llm-comparison.json",
+    "eval:prompts": "node run-eval.mjs evals/prompt-variants.json",
+    "eval:code": "node run-eval.mjs evals/code-generation.json",
+    "eval:rag": "node run-eval.mjs evals/rag-pipeline.json",
+    "eval:agent": "node run-eval.mjs evals/agent-tools.json"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "evaluation",
+    "benchmark",
+    "openai",
+    "anthropic",
+    "ollama",
+    "gemini"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.0"
+  }
+}
