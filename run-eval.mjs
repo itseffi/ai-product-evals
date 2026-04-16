@@ -42,6 +42,7 @@ function parseArgs() {
   const config = {
     evalFile: null,
     provider: null,
+    model: null,
     output: 'eval-results.md',
     outputFormat: 'md', // md, csv, json
     verbose: false,
@@ -61,6 +62,8 @@ function parseArgs() {
     
     if (arg === '--provider' || arg === '-p') {
       config.provider = args[++i];
+    } else if (arg === '--model' || arg === '-m') {
+      config.model = args[++i];
     } else if (arg === '--output' || arg === '-o') {
       config.output = args[++i];
     } else if (arg === '--format' || arg === '-f') {
@@ -105,6 +108,7 @@ Usage:
 
 Options:
   --provider, -p <name>   Override provider (ollama, openrouter, openai, anthropic, google)
+  --model, -m <name>      Override model name for the selected provider
   --output, -o <file>     Output file for results (default: eval-results.md)
   --format, -f <type>     Output format: md, csv, json (default: md)
   --verbose, -v           Enable verbose logging
@@ -124,6 +128,7 @@ Examples:
   node run-eval.mjs evals/llm-comparison.json          # Run specific eval
   node run-eval.mjs dataset.csv                        # Run from CSV dataset
   node run-eval.mjs --provider openai                  # Override provider
+  node run-eval.mjs --provider openai --model gpt-4o-mini
   node run-eval.mjs --parallel evals/quick-test.json   # Run in parallel
   node run-eval.mjs --format csv -o results.csv        # Export to CSV
   node run-eval.mjs --history                          # View past runs
@@ -167,6 +172,39 @@ function truncateText(text, maxLength = 100) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function resolveExecutionModels(evalConfig, cliConfig) {
+  const configuredModels = Array.isArray(evalConfig.models) ? evalConfig.models.filter(Boolean) : [];
+
+  if (configuredModels.length === 0) {
+    const provider = cliConfig.provider
+      ? getProvider(cliConfig.provider)
+      : await getDefaultProvider();
+
+    return [{
+      provider: provider.name,
+      model: cliConfig.model || provider.defaultModel,
+    }];
+  }
+
+  const resolvedModels = [];
+
+  for (const configuredModel of configuredModels) {
+    const provider = cliConfig.provider
+      ? getProvider(cliConfig.provider)
+      : configuredModel.provider
+        ? getProvider(configuredModel.provider)
+        : await getDefaultProvider();
+
+    resolvedModels.push({
+      ...configuredModel,
+      provider: provider.name,
+      model: cliConfig.model || configuredModel.model || provider.defaultModel,
+    });
+  }
+
+  return resolvedModels;
 }
 
 // =============================================================================
@@ -271,14 +309,20 @@ async function runTestCase(testCase, modelConfig, provider, options = {}) {
     }
 
     // Evaluate the response
-    let evalResult = { pass: null, score: null, reason: 'Evaluation skipped', evalType: 'none' };
-    
-    if (!options.skipJudge) {
-      evalResult = await evaluate(testCase, result.text, {
-        judgeProvider: options.judgeProvider,
-        judgeModel: options.judgeModel,
-      });
+    let evalTestCase = testCase;
+    if (options.skipJudge && (testCase.criteria || testCase.eval_type === 'llm_judge')) {
+      // Keep deterministic checks active while skipping judge-model scoring.
+      const { criteria, ...withoutCriteria } = testCase;
+      evalTestCase = {
+        ...withoutCriteria,
+        eval_type: testCase.eval_type === 'llm_judge' ? 'existence' : testCase.eval_type,
+      };
     }
+
+    const evalResult = await evaluate(evalTestCase, result.text, {
+      judgeProvider: options.judgeProvider,
+      judgeModel: options.judgeModel,
+    });
 
     return {
       success: true,
@@ -323,7 +367,7 @@ async function runTestCase(testCase, modelConfig, provider, options = {}) {
 async function runEval(evalConfig, cliConfig) {
   const results = [];
   const testCases = evalConfig.test_cases || [];
-  const models = evalConfig.models || [];
+  const models = await resolveExecutionModels(evalConfig, cliConfig);
   
   // Create trace for this run
   const trace = createTrace(evalConfig);
@@ -367,14 +411,7 @@ async function runEval(evalConfig, cliConfig) {
       
       const batchResults = await Promise.all(
         batch.map(async ({ testCase, modelConfig }) => {
-          let provider;
-          if (cliConfig.provider) {
-            provider = getProvider(cliConfig.provider);
-          } else if (modelConfig.provider) {
-            provider = getProvider(modelConfig.provider);
-          } else {
-            provider = await getDefaultProvider();
-          }
+          const provider = getProvider(modelConfig.provider);
 
           return runTestCaseWithRetry(testCase, modelConfig, provider, {
             skipJudge: cliConfig.skipJudge,
@@ -407,14 +444,7 @@ async function runEval(evalConfig, cliConfig) {
       }
 
       for (const modelConfig of models) {
-        let provider;
-        if (cliConfig.provider) {
-          provider = getProvider(cliConfig.provider);
-        } else if (modelConfig.provider) {
-          provider = getProvider(modelConfig.provider);
-        } else {
-          provider = await getDefaultProvider();
-        }
+        const provider = getProvider(modelConfig.provider);
 
         const model = modelConfig.model;
         process.stdout.write(`   ⏳ ${provider.name}/${model}... `);
@@ -673,12 +703,6 @@ async function main() {
       evalConfig = loadDataset(evalPath);
       console.log(`\n📄 Loaded dataset: ${evalPath} (${evalConfig.test_cases.length} test cases)`);
       
-      // If no models specified, use default
-      if (!evalConfig.models || evalConfig.models.length === 0) {
-        const defaultProvider = await getDefaultProvider();
-        evalConfig.models = [{ provider: defaultProvider.name, model: defaultProvider.defaultModel }];
-        console.log(`   Using default model: ${defaultProvider.name}/${defaultProvider.defaultModel}`);
-      }
     } else {
       // Standard JSON config
       const content = readFileSync(evalPath, 'utf8');
@@ -712,11 +736,29 @@ async function main() {
 
   console.log(`   Available: ${available.map(p => p.name).join(', ')}`);
 
+  const executionModels = await resolveExecutionModels(evalConfig, config);
+  const unavailableTargets = executionModels.filter(modelConfig =>
+    !available.some(provider => provider.name === modelConfig.provider)
+  );
+
+  if (unavailableTargets.length > 0) {
+    console.error(`\n❌ Selected provider(s) are not available: ${unavailableTargets.map(m => m.provider).join(', ')}`);
+    console.error('   Configure the matching API key/service, or choose a different provider with --provider\n');
+    process.exit(1);
+  }
+
+  console.log(`   Running with: ${executionModels.map(m => `${m.provider}/${m.model}`).join(', ')}`);
+
   // A/B Test mode
   if (config.abTest) {
     console.log('\n🧪 Running A/B Test...');
-    const provider = config.provider ? await getProvider(config.provider) : await getDefaultProvider();
-    const abResults = await runABTest(evalConfig, { provider });
+    const [executionModel] = executionModels;
+    const provider = getProvider(executionModel.provider);
+    const abResults = await runABTest(evalConfig, {
+      provider,
+      model: executionModel.model,
+      models: executionModels.map(({ model }) => ({ model })),
+    });
     const report = generateABReport(abResults);
     
     console.log('\n' + report);
@@ -731,7 +773,8 @@ async function main() {
   // Multi-turn mode
   if (config.multiTurn) {
     console.log('\n💬 Running Multi-Turn Conversation Test...');
-    const provider = config.provider ? await getProvider(config.provider) : await getDefaultProvider();
+    const [executionModel] = executionModels;
+    const provider = getProvider(executionModel.provider);
     
     // Process each test case as a conversation
     const testCases = evalConfig.test_cases || evalConfig.conversations || [evalConfig];
@@ -740,7 +783,7 @@ async function main() {
     for (const testCase of testCases) {
       console.log(`\n  Testing: ${testCase.name || 'Conversation'}`);
       const convResult = await runConversation(testCase, provider, {
-        model: evalConfig.models?.[0]?.model,
+        model: executionModel.model,
         verbose: config.verbose,
       });
       allResults.push({ testCase: testCase.name, results: convResult });

@@ -33,9 +33,13 @@ export async function runABTest(config, options = {}) {
   console.log(`   Comparing: "${variantA.name || 'A'}" vs "${variantB.name || 'B'}"`);
   console.log(`   Test cases: ${testCases.length}`);
   console.log('');
+
+  const executionModels = options.models
+    || models
+    || [{ model: options.model || provider.defaultModel }];
   
   for (const testCase of testCases) {
-    for (const modelConfig of models || [{ model: provider.defaultModel }]) {
+    for (const modelConfig of executionModels) {
       const model = modelConfig.model;
       
       // Run Variant A

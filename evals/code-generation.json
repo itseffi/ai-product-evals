@@ -40,8 +40,5 @@
       "criteria": ["bug_identification", "fix_correctness"],
       "max_tokens": 200
     }
-  ],
-  "models": [
-    { "provider": "ollama", "model": "qwen3:8b", "temperature": 0.2 }
   ]
 }

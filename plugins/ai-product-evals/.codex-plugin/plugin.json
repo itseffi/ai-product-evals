@@ -1,0 +1,32 @@
+{
+  "name": "ai-product-evals",
+  "version": "0.1.0",
+  "description": "Skills that guide AI coding agents to build, debug, and improve evals.",
+  "author": {
+    "name": "Effi",
+    "email": "effi@example.com",
+    "url": "https://github.com/itseffi/ai-product-evals"
+  },
+  "homepage": "https://github.com/itseffi/ai-product-evals",
+  "repository": "https://github.com/itseffi/ai-product-evals",
+  "license": "MIT",
+  "keywords": ["evals", "llm", "agents", "skills"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AI Product Evals",
+    "shortDescription": "Eval skills for AI products",
+    "longDescription": "Reusable skills for auditing, debugging, and improving LLM evaluation pipelines.",
+    "developerName": "Effi",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/itseffi/ai-product-evals",
+    "privacyPolicyURL": "https://github.com/itseffi/ai-product-evals",
+    "termsOfServiceURL": "https://github.com/itseffi/ai-product-evals",
+    "defaultPrompt": [
+      "Build a new eval suite",
+      "Debug failing evals from traces",
+      "Audit my eval pipeline"
+    ],
+    "brandColor": "#2563EB"
+  }
+}

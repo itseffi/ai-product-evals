@@ -41,8 +41,5 @@
       "expected_args": ["john@example.com", "Meeting"],
       "max_tokens": 256
     }
-  ],
-  "models": [
-    { "provider": "ollama", "model": "qwen3:8b", "temperature": 0.1 }
   ]
 }

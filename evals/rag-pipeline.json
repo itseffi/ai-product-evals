@@ -34,8 +34,5 @@
       "criteria": ["code_understanding", "accuracy"],
       "max_tokens": 200
     }
-  ],
-  "models": [
-    { "provider": "ollama", "model": "qwen3:8b", "temperature": 0.1 }
   ]
 }

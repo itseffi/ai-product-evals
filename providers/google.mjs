@@ -5,8 +5,18 @@
 
 import { BaseProvider } from './base.mjs';
 
-// Pricing per 1M tokens (input/output)
+// Pricing per 1M tokens (input/output), using Standard tier base text/image/video rates.
+// Source: https://cloud.google.com/vertex-ai/generative-ai/pricing
 const MODEL_PRICING = {
+  'gemini-3.1-pro-preview': { input: 2, output: 12 },
+  'gemini-3-pro-preview': { input: 2, output: 12 },
+  'gemini-3-flash-preview': { input: 0.5, output: 3 },
+  'gemini-3.1-flash-lite-preview': { input: 0.25, output: 1.5 },
+  'gemini-2.5-pro': { input: 1.25, output: 10 },
+  'gemini-2.5-flash': { input: 0.3, output: 2.5 },
+  'gemini-2.5-flash-lite': { input: 0.1, output: 0.4 },
+  'gemini-2.0-flash': { input: 0.15, output: 0.6 },
+  'gemini-2.0-flash-lite': { input: 0.075, output: 0.3 },
   'gemini-1.5-pro': { input: 1.25, output: 5 },
   'gemini-1.5-flash': { input: 0.075, output: 0.3 },
   'gemini-1.5-flash-8b': { input: 0.0375, output: 0.15 },
@@ -20,7 +30,7 @@ export class GoogleProvider extends BaseProvider {
     this.name = 'google';
     this.apiKey = config.apiKey || process.env.GOOGLE_API_KEY;
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-    this.defaultModel = config.defaultModel || 'gemini-1.5-flash';
+    this.defaultModel = config.defaultModel || 'gemini-2.5-flash';
   }
 
   async complete(messages, options = {}) {

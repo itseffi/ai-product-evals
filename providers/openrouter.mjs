@@ -6,13 +6,41 @@
 
 import { BaseProvider } from './base.mjs';
 
-// Pricing per 1M tokens (input/output) - approximate, check openrouter.ai for current prices
+// Pricing per 1M tokens (input/output).
+// OpenAI-family entries are aligned to OpenAI's standard-tier pricing page.
+// OpenRouter-specific routing and markup can differ by provider/model.
+// Sources:
+// - https://developers.openai.com/api/docs/pricing
+// - https://openrouter.ai/docs/api-reference/models/get-models
 const MODEL_PRICING = {
+  'openai/gpt-5.4': { input: 2.5, output: 15 },
+  'openai/gpt-5.4-mini': { input: 0.75, output: 4.5 },
+  'openai/gpt-5.4-nano': { input: 0.2, output: 1.25 },
+  'openai/gpt-5.4-pro': { input: 30, output: 180 },
+  'openai/gpt-5.2': { input: 1.75, output: 14 },
+  'openai/gpt-5.2-pro': { input: 21, output: 168 },
+  'openai/gpt-5.1': { input: 1.25, output: 10 },
+  'openai/gpt-5': { input: 1.25, output: 10 },
+  'openai/gpt-5-pro': { input: 15, output: 120 },
+  'openai/gpt-5-mini': { input: 0.25, output: 2 },
+  'openai/gpt-5-nano': { input: 0.05, output: 0.4 },
+  'openai/gpt-4.1': { input: 2, output: 8 },
+  'openai/gpt-4.1-mini': { input: 0.4, output: 1.6 },
   'openai/gpt-4o': { input: 2.5, output: 10 },
+  'openai/gpt-4o-2024-05-13': { input: 5, output: 15 },
   'openai/gpt-4o-mini': { input: 0.15, output: 0.6 },
-  'openai/gpt-4-turbo': { input: 10, output: 30 },
+  'openai/o1-pro': { input: 150, output: 600 },
+  'openai/o3-pro': { input: 20, output: 80 },
+  'openai/o3': { input: 2, output: 8 },
+  'openai/o4-mini': { input: 1.1, output: 4.4 },
+  'anthropic/claude-sonnet-4': { input: 3, output: 15 },
+  'anthropic/claude-opus-4': { input: 15, output: 75 },
+  'anthropic/claude-3.7-sonnet': { input: 3, output: 15 },
   'anthropic/claude-3.5-sonnet': { input: 3, output: 15 },
-  'anthropic/claude-3-haiku': { input: 0.25, output: 1.25 },
+  'anthropic/claude-3.5-haiku': { input: 0.8, output: 4 },
+  'google/gemini-2.5-pro': { input: 1.25, output: 10 },
+  'google/gemini-2.5-flash': { input: 0.3, output: 2.5 },
+  'google/gemini-2.0-flash': { input: 0.1, output: 0.4 },
   'google/gemini-pro-1.5': { input: 1.25, output: 5 },
   'google/gemini-flash-1.5': { input: 0.075, output: 0.3 },
   'meta-llama/llama-3.1-70b-instruct': { input: 0.52, output: 0.75 },
@@ -26,7 +54,7 @@ export class OpenRouterProvider extends BaseProvider {
     this.name = 'openrouter';
     this.apiKey = config.apiKey || process.env.OPENROUTER_API_KEY;
     this.baseUrl = 'https://openrouter.ai/api/v1';
-    this.defaultModel = config.defaultModel || 'openai/gpt-4o-mini';
+    this.defaultModel = config.defaultModel || 'openai/gpt-5.4-mini';
   }
 
   async complete(messages, options = {}) {

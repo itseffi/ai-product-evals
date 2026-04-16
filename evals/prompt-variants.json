@@ -32,8 +32,5 @@
       "criteria": ["instruction_following"],
       "max_tokens": 250
     }
-  ],
-  "models": [
-    { "provider": "ollama", "model": "qwen3:8b", "temperature": 0.5 }
   ]
 }

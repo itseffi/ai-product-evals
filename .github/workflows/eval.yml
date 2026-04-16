@@ -1,7 +1,6 @@
 name: Run LLM Evaluations
 
 on:
-  # Run on push to main
   push:
     branches: [main, master]
     paths:
@@ -9,12 +8,10 @@ on:
       - 'evaluators/**'
       - 'providers/**'
       - 'run-eval.mjs'
-  
-  # Run on PR
+
   pull_request:
     branches: [main, master]
-  
-  # Manual trigger
+
   workflow_dispatch:
     inputs:
       eval_file:
@@ -26,86 +23,135 @@ on:
         required: false
         default: 'openai'
 
-  # Scheduled runs (daily at 9am UTC)
   schedule:
     - cron: '0 9 * * *'
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '24'
 
 jobs:
   eval:
     name: Run Evaluations
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      
+        uses: actions/checkout@v6
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
-      - name: Run evaluations
+
+      - name: Resolve CI target
+        id: prepare
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          DEFAULT_PROVIDER: ${{ github.event.inputs.provider || 'openai' }}
         run: |
+          PROVIDER="${{ github.event.inputs.provider || 'openai' }}"
           EVAL_FILE="${{ github.event.inputs.eval_file || 'evals/quick-test.json' }}"
-          echo "Running eval: $EVAL_FILE"
-          node run-eval.mjs "$EVAL_FILE" --output eval-results.md
-      
+
+          case "$PROVIDER" in
+            openai)
+              MODEL="gpt-5.4"
+              API_KEY="$OPENAI_API_KEY"
+              ;;
+            anthropic)
+              MODEL="claude-haiku-4-5"
+              API_KEY="$ANTHROPIC_API_KEY"
+              ;;
+            google)
+              MODEL="gemini-2.5-flash"
+              API_KEY="$GOOGLE_API_KEY"
+              ;;
+            openrouter)
+              MODEL="openai/gpt-5.4-mini"
+              API_KEY="$OPENROUTER_API_KEY"
+              ;;
+            *)
+              echo "::warning::Provider '$PROVIDER' is not supported by this CI workflow."
+              echo "available=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
+          if [ -z "$API_KEY" ]; then
+            echo "::notice::Skipping eval job because the secret for provider '$PROVIDER' is not configured."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "provider=$PROVIDER" >> "$GITHUB_OUTPUT"
+          echo "model=$MODEL" >> "$GITHUB_OUTPUT"
+          echo "eval_file=$EVAL_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Run evaluations
+        if: steps.prepare.outputs.available == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DEFAULT_PROVIDER: ${{ steps.prepare.outputs.provider }}
+        run: |
+          echo "Running eval: ${{ steps.prepare.outputs.eval_file }}"
+          echo "Provider: ${{ steps.prepare.outputs.provider }}"
+          echo "Model: ${{ steps.prepare.outputs.model }}"
+          node run-eval.mjs "${{ steps.prepare.outputs.eval_file }}" \
+            --provider "${{ steps.prepare.outputs.provider }}" \
+            --model "${{ steps.prepare.outputs.model }}" \
+            --skip-judge \
+            --output eval-results.md
+
       - name: Upload results
+        if: steps.prepare.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: eval-results
+          if-no-files-found: warn
           path: |
             eval-results.md
             traces/
           retention-days: 30
-      
+
       - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request' && steps.prepare.outputs.available == 'true'
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
             const results = fs.readFileSync('eval-results.md', 'utf8');
-            
-            // Extract summary section
+
             const summaryMatch = results.match(/## Overall Results[\s\S]*?(?=##|$)/);
             const summary = summaryMatch ? summaryMatch[0] : 'Results available in artifacts';
-            
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body: `## Eval Results\n\n${summary}\n\n[Full results in artifacts](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
             });
-      
+
       - name: Check for regressions
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.prepare.outputs.available == 'true'
         run: |
-          # Get previous trace from main branch (if exists)
-          # This is a placeholder - in practice you'd compare with baseline
           echo "Checking for regressions..."
-          
-          # Fail if pass rate is below threshold
+
           PASS_RATE=$(grep -oP 'Pass: \K\d+' eval-results.md | head -1 || echo "0")
           TOTAL=$(grep -oP 'Total Requests: \K\d+' eval-results.md || echo "1")
-          
+
           if [ "$TOTAL" -gt 0 ]; then
             RATE=$((PASS_RATE * 100 / TOTAL))
             echo "Pass rate: $RATE%"
-            
+
             THRESHOLD="${{ vars.EVAL_PASS_THRESHOLD || 70 }}"
             if [ "$RATE" -lt "$THRESHOLD" ]; then
               echo "::error::Pass rate $RATE% is below threshold $THRESHOLD%"
@@ -114,38 +160,77 @@ jobs:
           fi
 
   compare:
-    name: Compare Models
+    name: Compare Models (${{ matrix.provider }})
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-    
+
     strategy:
+      fail-fast: false
       matrix:
         provider: [openai, anthropic]
-    
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      
+        uses: actions/checkout@v6
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
-      - name: Run eval with ${{ matrix.provider }}
+
+      - name: Resolve compare target
+        id: prepare
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          node run-eval.mjs evals/llm-comparison.json \
-            --provider ${{ matrix.provider }} \
+          PROVIDER="${{ matrix.provider }}"
+
+          case "$PROVIDER" in
+            openai)
+              MODEL="gpt-5.4"
+              API_KEY="$OPENAI_API_KEY"
+              ;;
+            anthropic)
+              MODEL="claude-haiku-4-5"
+              API_KEY="$ANTHROPIC_API_KEY"
+              ;;
+          esac
+
+          if [ -z "$API_KEY" ]; then
+            echo "::notice::Skipping compare job because the secret for provider '$PROVIDER' is not configured."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "provider=$PROVIDER" >> "$GITHUB_OUTPUT"
+          echo "model=$MODEL" >> "$GITHUB_OUTPUT"
+          echo "eval_file=evals/llm-comparison.json" >> "$GITHUB_OUTPUT"
+
+      - name: Run eval with ${{ matrix.provider }}
+        if: steps.prepare.outputs.available == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEFAULT_PROVIDER: ${{ steps.prepare.outputs.provider }}
+        run: |
+          echo "Provider: ${{ steps.prepare.outputs.provider }}"
+          echo "Model: ${{ steps.prepare.outputs.model }}"
+          node run-eval.mjs "${{ steps.prepare.outputs.eval_file }}" \
+            --provider "${{ steps.prepare.outputs.provider }}" \
+            --model "${{ steps.prepare.outputs.model }}" \
+            --skip-judge \
             --output results-${{ matrix.provider }}.md
-      
+
       - name: Upload results
+        if: steps.prepare.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: results-${{ matrix.provider }}
+          if-no-files-found: warn
           path: results-${{ matrix.provider }}.md

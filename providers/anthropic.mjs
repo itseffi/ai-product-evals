@@ -6,7 +6,22 @@
 import { BaseProvider } from './base.mjs';
 
 // Pricing per 1M tokens (input/output)
+// Sources:
+// - https://platform.claude.com/docs/en/about-claude/pricing
+// - https://platform.claude.com/docs/en/about-claude/models/overview
 const MODEL_PRICING = {
+  'claude-opus-4-7': { input: 5, output: 25 },
+  'claude-opus-4-6': { input: 5, output: 25 },
+  'claude-opus-4-5': { input: 5, output: 25 },
+  'claude-opus-4.1': { input: 15, output: 75 },
+  'claude-opus-4': { input: 15, output: 75 },
+  'claude-sonnet-4-6': { input: 3, output: 15 },
+  'claude-sonnet-4-5': { input: 3, output: 15 },
+  'claude-sonnet-4': { input: 3, output: 15 },
+  'claude-haiku-4-5': { input: 1, output: 5 },
+  'claude-haiku-4-5-20251001': { input: 1, output: 5 },
+  'claude-3-7-sonnet': { input: 3, output: 15 },
+  'claude-3-7-sonnet-20250219': { input: 3, output: 15 },
   'claude-3-5-sonnet-20241022': { input: 3, output: 15 },
   'claude-3-5-haiku-20241022': { input: 0.8, output: 4 },
   'claude-3-opus-20240229': { input: 15, output: 75 },
@@ -20,7 +35,7 @@ export class AnthropicProvider extends BaseProvider {
     this.name = 'anthropic';
     this.apiKey = config.apiKey || process.env.ANTHROPIC_API_KEY;
     this.baseUrl = 'https://api.anthropic.com/v1';
-    this.defaultModel = config.defaultModel || 'claude-3-5-sonnet-20241022';
+    this.defaultModel = config.defaultModel || 'claude-sonnet-4-6';
   }
 
   async complete(messages, options = {}) {

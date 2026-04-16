@@ -10,7 +10,11 @@
     "eval:prompts": "node run-eval.mjs evals/prompt-variants.json",
     "eval:code": "node run-eval.mjs evals/code-generation.json",
     "eval:rag": "node run-eval.mjs evals/rag-pipeline.json",
-    "eval:agent": "node run-eval.mjs evals/agent-tools.json"
+    "eval:agent": "node run-eval.mjs evals/agent-tools.json",
+    "skill:eval-audit": "node scripts/eval-audit.mjs",
+    "skill:eval-audit:json": "node scripts/eval-audit.mjs --json",
+    "skill:error-analysis": "node scripts/error-analysis.mjs",
+    "skill:error-analysis:json": "node scripts/error-analysis.mjs --json"
   },
   "keywords": [
     "ai",

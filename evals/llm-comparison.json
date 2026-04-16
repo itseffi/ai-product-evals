@@ -40,8 +40,5 @@
       "expected_contains": ["cannot determine"],
       "max_tokens": 256
     }
-  ],
-  "models": [
-    { "provider": "ollama", "model": "qwen3:8b", "temperature": 0.3 }
   ]
 }

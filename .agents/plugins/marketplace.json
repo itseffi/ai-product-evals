@@ -1,0 +1,20 @@
+{
+  "name": "ai-product-evals",
+  "interface": {
+    "displayName": "AI Product Evals"
+  },
+  "plugins": [
+    {
+      "name": "ai-product-evals",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ai-product-evals"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

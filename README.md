@@ -1,142 +1,276 @@
 # AI Product Evals
 
-- **Level 1: Unit Tests** - CLI for automated testing
-- **Level 2: Model & Human Eval** - Web app for human review
-- **Level 3: A/B Testing** - Compare prompt variants
+Purpose-built for humans and AI coding agents.
 
-## Features
+Core components:
 
-- **Real evaluation scoring** - Pass/fail with reasons (exact match, contains, regex, tool call, LLM-as-judge)
-- **Trace logging** - Every run saved to JSON for debugging and analysis
-- **Trace Viewer UI** - Visual interface to browse and grade results
-- **Parallel execution** - Run tests concurrently for faster results
-- **Response caching** - Skip identical prompts to save time and cost
-- **Rate limiting** - Automatic API rate limit handling
-- **Auto-retry** - Exponential backoff on failures
-- **History tracking** - Compare runs, detect regressions
-- **A/B testing** - Compare prompt variants systematically
-- **Multi-turn testing** - Test conversation flows
-- **Semantic similarity** - Embeddings-based scoring
-- **Safety checks** - Toxicity and PII detection
-- **Dataset import** - Load from JSON, JSONL, or CSV
-- **Multiple export formats** - Markdown, CSV, JSON
-- **CI/CD ready** - GitHub Actions workflow included
-- **Multi-provider** - Ollama, OpenAI, Anthropic, Google, OpenRouter
+- provider-agnostic eval suites in `evals/`
+- a CLI runner in `run-eval.mjs`
+- trace logging in `traces/`
+- a browser review interface in `app.html`
+- repo-local skills in `skills/` that guide agents to build, debug, and improve evals
+- Claude-compatible skill exposure in `.claude/skills/`
+- a reusable Codex plugin in `plugins/ai-product-evals/`
 
-## Quick Start
+## Start Here
+
+If you are new to this repo, start with the skills layer rather than jumping straight into the code.
+
+For an AI coding agent:
+
+1. Run `npm run skill:eval-audit`
+2. If traces exist, run `npm run skill:error-analysis`
+3. Follow the routing guide in [AGENT_EVALS.md](/Users/effi/Projects/ai-product-evals-main/AGENT_EVALS.md:1)
+4. Use the matching skill from `skills/`
+
+For a human:
 
 ```bash
 npm install
-cp .env.example .env   # Configure at least one provider
 node run-eval.mjs evals/quick-test.json
+npm run skill:eval-audit
 ```
 
-## CLI Commands
+If you want a fast smoke test against a hosted provider:
 
 ```bash
-# Run an eval
-node run-eval.mjs evals/agent-tools.json
+node run-eval.mjs --provider openai --model gpt-5.4 evals/quick-test.json
+```
 
-# Run in parallel (faster)
+## Why This Repo Exists
+
+Most eval repos are good at one thing only: running tests.
+
+This repo is built to support the full eval workflow:
+
+1. Define evals
+2. Run them across models/providers
+3. Capture traces
+4. Review failures
+5. Use skills to improve the eval pipeline itself
+
+That is why the `skills/` directory is a first-class part of the repo.
+
+## Skills
+
+The most important addition in this repo is the skills layer.
+
+These skills guide AI coding agents to help you build and improve LLM evaluations. They are not eval files. They are workflow instructions for agents.
+
+Current skills:
+
+- [skills/eval-smoke-test.md](/Users/effi/Projects/ai-product-evals-main/skills/eval-smoke-test.md:1)
+- [skills/error-analysis.md](/Users/effi/Projects/ai-product-evals-main/skills/error-analysis.md:1)
+- [skills/benchmark-models.md](/Users/effi/Projects/ai-product-evals-main/skills/benchmark-models.md:1)
+- [skills/compare-prompt-strategies.md](/Users/effi/Projects/ai-product-evals-main/skills/compare-prompt-strategies.md:1)
+- [skills/evaluate-code-generation.md](/Users/effi/Projects/ai-product-evals-main/skills/evaluate-code-generation.md:1)
+- [skills/evaluate-rag.md](/Users/effi/Projects/ai-product-evals-main/skills/evaluate-rag.md:1)
+- [skills/evaluate-tool-use.md](/Users/effi/Projects/ai-product-evals-main/skills/evaluate-tool-use.md:1)
+- [skills/generate-synthetic-data.md](/Users/effi/Projects/ai-product-evals-main/skills/generate-synthetic-data.md:1)
+- [skills/write-judge-prompt.md](/Users/effi/Projects/ai-product-evals-main/skills/write-judge-prompt.md:1)
+- [skills/validate-evaluator.md](/Users/effi/Projects/ai-product-evals-main/skills/validate-evaluator.md:1)
+- [skills/build-review-interface.md](/Users/effi/Projects/ai-product-evals-main/skills/build-review-interface.md:1)
+
+Use [AGENT_EVALS.md](/Users/effi/Projects/ai-product-evals-main/AGENT_EVALS.md:1) to decide which skill to use first.
+
+## Agent Integrations
+
+This repo exposes the same skills through three paths:
+
+- `skills/*.md` as the source of truth in the repo
+- `.claude/skills/` for Claude-compatible skill loading
+- `plugins/ai-product-evals/` for the Codex plugin package
+
+The skill content stays in sync because the Claude layer points at the same underlying skill folders, and the Codex plugin bundles the same skill set.
+
+## Helper Scripts
+
+These scripts make the skills more operational for agents:
+
+```bash
+# Structural audit of the eval repo
+npm run skill:eval-audit
+npm run skill:eval-audit:json
+
+# Analyze the latest trace
+npm run skill:error-analysis
+npm run skill:error-analysis:json
+
+# Analyze a specific trace
+node scripts/error-analysis.mjs <trace-id>
+node scripts/error-analysis.mjs <trace-id> --json
+```
+
+Use markdown output for humans and JSON output for agents or automation.
+
+## Core Workflow
+
+The recommended repo workflow is:
+
+1. Start with `skills/eval-smoke-test.md` if the pipeline seems broken.
+2. Run an eval suite from `evals/`.
+3. Inspect traces in `traces/`.
+4. Run `npm run skill:error-analysis`.
+5. Use a domain-specific skill such as `evaluate-rag` or `evaluate-tool-use`.
+6. If using judge-based scoring, use `write-judge-prompt` and `validate-evaluator`.
+
+## Running Evals
+
+Basic usage:
+
+```bash
+# Run a suite with the default available provider
+node run-eval.mjs evals/quick-test.json
+
+# Run a suite against a specific provider/model
+node run-eval.mjs --provider openai --model gpt-5.4 evals/llm-comparison.json
+node run-eval.mjs --provider anthropic --model claude-haiku-4-5 evals/agent-tools.json
+node run-eval.mjs --provider google --model gemini-2.5-flash evals/rag-pipeline.json
+
+# Run in parallel
 node run-eval.mjs --parallel evals/llm-comparison.json
 
-# Load from CSV dataset
-node run-eval.mjs evals/example.csv
-
-# Export to CSV
+# Export results
 node run-eval.mjs --format csv -o results.csv evals/quick-test.json
+node run-eval.mjs --format json -o results.json evals/quick-test.json
+
+# Compare against a previous trace
+node run-eval.mjs --compare <trace-id> evals/llm-comparison.json
+
+# List providers
+node run-eval.mjs --list-providers
 
 # View run history
 node run-eval.mjs --history
-
-# Compare against previous run
-node run-eval.mjs --compare <trace-id> evals/agent-tools.json
-
-# Skip LLM scoring (faster)
-node run-eval.mjs --skip-judge evals/quick-test.json
-
-# Override provider
-node run-eval.mjs --provider openai evals/llm-comparison.json
-
-# Clear response cache
-node run-eval.mjs --clear-cache
-
-# List available providers
-node run-eval.mjs --list-providers
-
-# Run A/B test (compare prompt variants)
-node run-eval.mjs --ab-test evals/ab-test-config.json
-
-# Run multi-turn conversation test
-node run-eval.mjs --multi-turn evals/conversation-test.json
 ```
 
-## LLM Data Review App (Level 2)
+### Important Behavior
 
-Open `app.html` in a browser for the full human review workflow:
+- Eval JSON files are provider-agnostic by default.
+- `models` in an eval file is optional.
+- If `models` is omitted, the runner uses:
+  - `--provider` / `--model` if passed
+  - otherwise the default available provider and its default model
+- `--skip-judge` skips judge-based scoring only. Deterministic checks still run.
 
-**Dashboard:**
-- LLM <> Human Agreement Rate chart
-- Human Acceptance Rate chart
-- Stats: Total Records, Pending, Agreement %, Acceptance %
+## Included Eval Suites
 
-**Review Workflow:**
-- Upload traces (JSON) or labeled data (CSV)
-- Filter by Tool, Scenario, Status, Source
-- Navigate records with Previous/Next
-- View Chat, Functions, Metadata tabs
-- Add human critique
-- Edit/revise model responses
-- Accept or Reject with one click
-- Download labeled data as CSV
+Current suites:
 
-**CSV Format (matches your template):**
-```csv
-Iteration,Model response,Model critique,Model outcome,Human critique,Human outcome,Human revised response,Agreement
-1,"{...}","Nearly correct...",bad,"Agree...",bad,"{...}",TRUE
-```
+- `evals/quick-test.json`
+  Fast sanity suite for runner behavior
 
-**Agreement Tracking:**
-- `Agreement = TRUE` when Model outcome matches Human outcome
-- Charts track agreement and acceptance rates over time
+- `evals/llm-comparison.json`
+  Shared benchmark for comparing models/providers
+
+- `evals/prompt-variants.json`
+  Prompt strategy comparison suite
+
+- `evals/code-generation.json`
+  Coding benchmark suite
+
+- `evals/rag-pipeline.json`
+  Retrieval-augmented generation suite
+
+- `evals/agent-tools.json`
+  Tool-use and agent-routing suite
+
+- `evals/example.csv`
+  Example CSV dataset, useful for import/export testing
 
 ## Evaluation Types
 
+This repo supports:
+
+- exact match
+- contains
+- regex
+- tool-call matching
+- JSON structure matching
+- LLM-as-judge
+- semantic similarity
+- safety checks
+
+Examples:
+
 ### Contains Check
+
 ```json
 { "prompt": "List languages", "expected_contains": ["Python", "JavaScript"] }
 ```
 
 ### Regex Match
+
 ```json
 { "prompt": "List 3 items numbered", "expected_regex": "1\\..*\\n2\\..*\\n3\\." }
 ```
 
 ### Tool Call Detection
+
 ```json
 { "prompt": "Weather in Tokyo?", "expected_tool": "get_weather", "expected_args": ["Tokyo"] }
 ```
 
 ### LLM-as-Judge
+
 ```json
 { "prompt": "Explain transformers", "criteria": ["accuracy", "conciseness"] }
 ```
 
 ### Semantic Similarity
+
 ```json
 { "prompt": "Explain ML", "expected_semantic": "Machine learning is...", "eval_type": "semantic_similarity" }
 ```
-*Requires `OPENAI_API_KEY` for embeddings (or Ollama with `nomic-embed-text` model)*
 
 ### Safety Check
+
 ```json
 { "prompt": "Test prompt", "safety_check": true, "eval_type": "safety" }
 ```
-*Checks for toxicity, PII leakage, and prompt injection attempts*
+
+## Traces
+
+Every eval run writes a trace to `traces/`.
+
+Traces are the main debugging artifact in this repo. They are used by:
+
+- humans inspecting failures
+- `app.html`
+- `scripts/error-analysis.mjs`
+- the agent skills, especially `error-analysis`, `evaluate-rag`, and `evaluate-tool-use`
+
+Each trace captures:
+
+- eval name
+- config
+- per-test result
+- prompt and system prompt
+- model/provider
+- pass/fail
+- score
+- reasoning string
+- raw response text or error
+
+## Review Interface
+
+Open `app.html` in a browser to review traces and human-label outputs.
+
+The review interface supports:
+
+- browsing traces
+- filtering records
+- comparing model versus human outcomes
+- annotating failures
+- exporting labeled data
+
+If you want to improve this workflow, use [skills/build-review-interface.md](/Users/effi/Projects/ai-product-evals-main/skills/build-review-interface.md:1).
 
 ## A/B Testing
 
-Compare prompt variants:
+Use `ab-test.mjs` to compare prompt strategies or variants.
+
+Example:
 
 ```javascript
 import { runABTest, generateABReport } from './ab-test.mjs';
@@ -148,7 +282,7 @@ const results = await runABTest({
   testCases: [
     { prompt: 'What is 2+2?', expected_contains: ['4'] },
   ],
-  models: [{ model: 'qwen3:8b' }],
+  models: [{ model: 'gpt-5.4' }],
 });
 
 console.log(generateABReport(results));
@@ -156,14 +290,16 @@ console.log(generateABReport(results));
 
 ## Multi-Turn Conversations
 
-Test dialogue flows:
+Use `multi-turn.mjs` for conversation-style evals.
+
+Example:
 
 ```javascript
 import { runConversation } from './multi-turn.mjs';
 
 const result = await runConversation({
   name: 'Customer Support',
-  system_prompt: 'You are a helpful support agent.',
+  system_prompt: 'You are a helpful customer support agent.',
   turns: [
     { user: 'I forgot my password', expected_contains: ['reset'] },
     { user: 'The email never arrived', expected_contains: ['spam', 'check'] },
@@ -173,16 +309,17 @@ const result = await runConversation({
 
 ## Dataset Formats
 
-### JSON (standard)
+### JSON
+
 ```json
 {
   "name": "My Eval",
-  "test_cases": [{ "prompt": "...", "expected": "..." }],
-  "models": [{ "provider": "ollama", "model": "qwen3:8b" }]
+  "test_cases": [{ "prompt": "...", "expected": "..." }]
 }
 ```
 
 ### CSV
+
 ```csv
 name,prompt,expected,expected_contains,system_prompt,max_tokens
 Test 1,What is 2+2?,4,,Be brief.,100
@@ -190,81 +327,32 @@ Test 2,List languages,,Python|JavaScript,,200
 ```
 
 ### JSONL
+
 ```jsonl
 {"name": "Test 1", "prompt": "What is 2+2?", "expected": "4"}
 {"name": "Test 2", "prompt": "List languages", "expected_contains": ["Python"]}
 ```
 
-## CI/CD Integration
+## CI/CD
 
-GitHub Actions workflow included (`.github/workflows/eval.yml`):
+GitHub Actions workflow:
 
-- Runs on push to main
-- Runs on PRs (comments results)
-- Scheduled daily runs
-- Compares models in parallel
-- Fails PR if pass rate below threshold
+- runs on push to `main` / `master`
+- runs on PRs
+- supports scheduled comparisons
+- skips provider jobs cleanly when matching secrets are absent
+- uses explicit provider/model targets for hosted CI runs
 
-Set these secrets in your repo:
+Main workflow file:
+
+- `.github/workflows/eval.yml`
+
+Expected secrets:
+
 - `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
 - `GOOGLE_API_KEY`
-
-## Response Caching
-
-Responses are cached in `.cache/` to avoid re-running identical prompts:
-
-```bash
-# Disable caching for a run
-node run-eval.mjs --no-cache evals/quick-test.json
-
-# Clear all cached responses
-node run-eval.mjs --clear-cache
-```
-
-Configure cache TTL in `.env`:
-```bash
-CACHE_TTL_MS=86400000  # 24 hours (default)
-```
-
-## Cost Tracking
-
-Accurate per-model pricing with real-time tracking:
-
-```
-Total Cost: $0.0023
-```
-
-Pricing data in `costs.mjs` for:
-- OpenAI (GPT-4o, o1, etc.)
-- Anthropic (Claude 3.5, etc.)
-- Google (Gemini 1.5, 2.0)
-- OpenRouter models
-- Ollama (free)
-
-## Project Structure
-
-```
-ai-product-evals/
-├── run-eval.mjs           # Level 1: CLI runner for automated evals
-├── app.html               # Level 2: Human review web app with charts
-├── tracer.mjs             # Trace logging & history
-├── evaluators/index.mjs   # Scoring logic
-├── providers/             # LLM providers
-├── cache.mjs              # Response caching
-├── rate-limiter.mjs       # API rate limiting
-├── costs.mjs              # Cost tracking
-├── safety.mjs             # Safety checks
-├── similarity.mjs         # Semantic similarity
-├── ab-test.mjs            # Level 3: A/B testing
-├── multi-turn.mjs         # Conversation testing
-├── dataset.mjs            # Dataset loading/export
-├── evals/                 # Eval configs
-├── traces/                # Saved traces (gitignored)
-├── .cache/                # Response cache (gitignored)
-├── .github/workflows/     # CI/CD
-└── .env                   # API keys
-```
+- `OPENROUTER_API_KEY`
 
 ## Environment Variables
 
@@ -277,9 +365,11 @@ GOOGLE_API_KEY=...
 OPENROUTER_API_KEY=...
 
 # Defaults
-DEFAULT_PROVIDER=ollama
-JUDGE_PROVIDER=ollama
-JUDGE_MODEL=qwen3:8b
+# Choose a provider that is actually available in your environment.
+# The default provider and judge provider can be the same.
+DEFAULT_PROVIDER=openai
+JUDGE_PROVIDER=openai
+JUDGE_MODEL=gpt-5.4
 
 # Performance
 PARALLEL_LIMIT=3
@@ -291,6 +381,63 @@ EVAL_TIMEOUT_MS=180000
 USE_CACHE=true
 CACHE_TTL_MS=86400000
 ```
+
+## Response Caching
+
+Responses are cached in `.cache/`.
+
+```bash
+node run-eval.mjs --no-cache evals/quick-test.json
+node run-eval.mjs --clear-cache
+```
+
+## Cost Tracking
+
+Cost is reported as approximate metadata only.
+
+## Project Structure
+
+```text
+ai-product-evals/
+├── AGENT_EVALS.md        # Skill routing guide for agents
+├── skills/               # Agent-facing eval skills and source-of-truth content
+├── .claude/skills/       # Claude-compatible skill exposure
+├── plugins/ai-product-evals/  # Codex plugin package
+├── scripts/              # Helper scripts for skills
+├── evals/                # Eval suites
+├── run-eval.mjs          # Main eval runner
+├── evaluators/           # Scoring logic
+├── providers/            # Provider integrations
+├── tracer.mjs            # Trace storage and comparison
+├── traces/               # Saved traces
+├── app.html              # Human review UI
+├── ab-test.mjs           # Prompt-variant testing
+├── multi-turn.mjs        # Conversation testing
+├── dataset.mjs           # Dataset import/export
+├── cache.mjs             # Response caching
+├── rate-limiter.mjs      # Rate limiting
+├── similarity.mjs        # Semantic similarity
+├── safety.mjs            # Safety checks
+└── .github/workflows/    # CI
+```
+
+## Built For
+
+- running evals across providers and models
+- debugging failures from traces
+- improving prompt, RAG, tool-use, and code-generation evals
+- helping AI coding agents work effectively on eval pipelines
+
+## Extended By Skills
+
+The skills layer helps agents:
+
+- audit the eval pipeline
+- analyze failures
+- design judge prompts
+- validate evaluators
+- expand coverage with synthetic data
+- improve review interfaces
 
 ## License
 
