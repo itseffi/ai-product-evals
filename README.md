@@ -1,6 +1,6 @@
 # AI Product Evals
 
-Purpose-built for humans and AI coding agents.
+This repo runs the full eval workflow (define, run, trace, review, and improve) with a skills layer that lets AI coding agents work on the eval pipeline itself.
 
 Core components:
 
