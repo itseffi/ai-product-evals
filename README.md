@@ -140,8 +140,9 @@ The recommended repo workflow is:
 
 Human labels are first-class artifacts in this repo. Store reviewed examples in `labels/` using the schema documented in [docs/schemas/labels.md](docs/schemas/labels.md).
 
-The minimum useful label contains:
+The minimum valid label contains:
 
+- `id`
 - `prompt`
 - `response`
 - `human_pass`
@@ -156,14 +157,17 @@ node scripts/validate-evaluator.mjs labels/sample-goldens.json
 node scripts/validate-evaluator.mjs labels/sample-goldens.json --repeat 5
 node scripts/validate-evaluator.mjs labels/sample-goldens.json --judge-panel openai:gpt-5.5,anthropic:claude-haiku-4-5
 node scripts/validate-evaluator.mjs labels/sample-goldens.json --repeat 5 --min-agreement 0.9 --min-stability 1
+node scripts/validate-evaluator.mjs labels/sample-goldens.json --write-baseline reports/judge-baseline.json
 node scripts/validate-evaluator.mjs labels/sample-goldens.json --drift-baseline reports/judge-baseline.json
 node scripts/validate-evaluator.mjs labels/sample-goldens.json --stream-jsonl reports/validator-events.jsonl
+mkdir -p reports
+node scripts/validate-evaluator.mjs labels/sample-goldens.json --json > reports/evaluator-validation.json
 node scripts/propose-judge-patch.mjs reports/evaluator-validation.json --judge-template rag-quality --output reports/proposed-judge.patch
 node scripts/promote-labels-to-eval.mjs labels/sample-goldens.json -o evals/promoted-from-labels.json
 ```
 
 Judge prompts live in `judges/`. Prefer suite-specific templates such as `rag-quality`, `rag-faithfulness`, `code-correctness`, and `tool-choice` over generic criteria.
-Use `--repeat` when validating judges to detect unstable verdicts across repeated calls. Validation reports raw agreement, stability, and Cohen's kappa; prefer kappa when the label set is imbalanced. The validator exits nonzero when agreement/stability thresholds are missed, provider calls fail, parse failures occur, or drift exceeds the configured baseline drop. Use `--judge-panel` when you want a majority vote across multiple judge models.
+Use `--repeat` when validating judges to detect unstable verdicts across repeated calls. Validation reports raw agreement, stability, and Cohen's kappa; prefer kappa when the label set is imbalanced. Use `--write-baseline` to save a known-good validation report, then use `--drift-baseline` to compare later runs against it. The validator exits nonzero when agreement/stability thresholds are missed, provider calls fail, parse failures occur, or drift exceeds the configured baseline drop. Use `--judge-panel` when you want a majority vote across multiple judge models.
 
 ## Running Evals
 
@@ -410,7 +414,7 @@ For end-to-end RAG answer judging, use the `rag-quality` judge template.
 
 ## Traces
 
-Every eval run writes a trace to `traces/`.
+Normal executed eval runs write traces to `traces/`. Metadata-only commands such as `--dry-run`, `--list-providers`, `--history`, and `--clear-cache` do not write traces.
 
 Traces are the main debugging artifact in this repo. They are used by:
 
