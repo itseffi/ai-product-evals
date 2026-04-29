@@ -1,6 +1,6 @@
 {
   "name": "ai-product-evals",
-  "version": "0.1.0",
+  "version": "1.3.0",
   "description": "Skills that guide AI coding agents to build, debug, and improve evals.",
   "author": {
     "name": "Effi",
