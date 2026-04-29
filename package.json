@@ -1,6 +1,6 @@
 {
   "name": "ai-product-evals",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "AI Product Evaluation Runner - Compare LLMs, test prompts, evaluate RAG pipelines and AI agents",
   "type": "module",
   "main": "run-eval.mjs",
