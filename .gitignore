@@ -13,6 +13,10 @@ eval-summary.md
 # Traces (contain full request/response data)
 traces/
 
+# Local/private label data
+labels/*calibration*.json
+labels/private/
+
 # Response cache
 .cache/
 

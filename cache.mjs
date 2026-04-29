@@ -5,10 +5,13 @@
  */
 
 import { createHash } from 'crypto';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, statSync } from 'fs';
 import { join, resolve } from 'path';
 
 const CACHE_DIR = resolve(process.cwd(), '.cache');
+const DEFAULT_CACHE_TTL_MS = 86400000;
+const MIN_CACHE_TTL_MS = 1000;
+const MAX_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Ensure cache directory exists
 if (!existsSync(CACHE_DIR)) {
@@ -25,6 +28,8 @@ export function getCacheKey(provider, model, messages, options = {}) {
     messages,
     temperature: options.temperature,
     max_tokens: options.max_tokens,
+    tools: options.tools,
+    tool_choice: options.tool_choice,
   });
   
   return createHash('sha256').update(data).digest('hex').substring(0, 16);
@@ -44,7 +49,7 @@ export function getCachedResponse(cacheKey) {
     const data = JSON.parse(readFileSync(cachePath, 'utf8'));
     
     // Check TTL (default 24 hours)
-    const ttlMs = parseInt(process.env.CACHE_TTL_MS || '86400000', 10);
+    const ttlMs = parseCacheTtlMs(process.env.CACHE_TTL_MS);
     if (Date.now() - data.timestamp > ttlMs) {
       return null;
     }
@@ -53,6 +58,13 @@ export function getCachedResponse(cacheKey) {
   } catch {
     return null;
   }
+}
+
+export function parseCacheTtlMs(value) {
+  if (value === undefined || value === null || value === '') return DEFAULT_CACHE_TTL_MS;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_CACHE_TTL_MS;
+  return Math.min(Math.max(parsed, MIN_CACHE_TTL_MS), MAX_CACHE_TTL_MS);
 }
 
 /**
@@ -77,8 +89,6 @@ export function setCachedResponse(cacheKey, response) {
  * Clear all cache
  */
 export function clearCache() {
-  const { readdirSync, unlinkSync } = require('fs');
-  
   if (!existsSync(CACHE_DIR)) {
     return 0;
   }
@@ -93,8 +103,6 @@ export function clearCache() {
  * Get cache stats
  */
 export function getCacheStats() {
-  const { readdirSync, statSync } = require('fs');
-  
   if (!existsSync(CACHE_DIR)) {
     return { entries: 0, sizeBytes: 0 };
   }

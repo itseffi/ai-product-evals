@@ -23,6 +23,21 @@ Complete error analysis on RAG pipeline traces before selecting metrics. Inspect
 
 ## Core Instructions
 
+### Use The Built-In RAG Metric Types
+
+Use `eval_type: "rag_retrieval"` for retrieval-only checks with `retrieved_context_ids`, `expected_relevant_context_ids`, and `k`.
+
+Use relationship evals for generation:
+
+- `rag_context_relevance` for C|Q
+- `rag_faithfulness` for A|C
+- `rag_answer_relevance` for A|Q
+- `rag_context_support` for C|A
+- `rag_answerability` for Q|C
+- `rag_self_containment` for Q|A
+
+Use the `rag-quality` judge template when you need a single end-to-end RAG answer rubric that covers grounding, answerability/refusal, scope discipline, answer relevance, and attribution.
+
 ### Evaluate Retrieval And Generation Separately
 
 Measure each component independently.
@@ -123,6 +138,15 @@ Classify failures as:
 - hop 1 miss
 - hop 2 miss
 - rank-out-of-top-k
+
+### Repo Files To Inspect
+
+- `evals/rag-pipeline.json`
+- `evaluators/rag.mjs`
+- `evaluators/index.mjs`
+- `judges/rag-faithfulness.md`
+- `judges/rag-quality.md`
+- `traces/`
 
 ## Anti-Patterns
 

@@ -2,12 +2,37 @@
  * Cost Tracking
  * 
  * Accurate per-provider pricing for LLM API calls
- * Prices as of Jan 2026 (update as needed)
+ * Prices as of Apr 2026 (update as needed)
  */
 
-// Pricing per 1M tokens (input, output)
+// Pricing per 1M tokens. `input`/`cachedInput`/`output` are Standard short-context rates.
+// `longContext` contains Standard long-context rates when published.
 export const PRICING = {
   // OpenAI
+  'gpt-5.5': {
+    input: 5.00,
+    cachedInput: 0.50,
+    output: 30.00,
+    longContext: { input: 10.00, cachedInput: 1.00, output: 45.00 },
+  },
+  'gpt-5.5-pro': {
+    input: 30.00,
+    cachedInput: null,
+    output: 180.00,
+    longContext: { input: 60.00, cachedInput: null, output: 270.00 },
+  },
+  'gpt-5.4': {
+    input: 2.50,
+    cachedInput: 0.25,
+    output: 15.00,
+    longContext: { input: 5.00, cachedInput: 0.50, output: 22.50 },
+  },
+  'gpt-5.4-mini': { input: 0.75, cachedInput: 0.075, output: 4.50 },
+  'gpt-5.4-nano': { input: 0.20, cachedInput: 0.02, output: 1.25 },
+  'gpt-5.3-codex': { input: 1.75, output: 14.00 },
+  'gpt-5.2': { input: 1.75, output: 14.00 },
+  'gpt-5': { input: 1.25, output: 10.00 },
+  'gpt-5-mini': { input: 0.25, output: 2.00 },
   'gpt-4o': { input: 2.50, output: 10.00 },
   'gpt-4o-mini': { input: 0.15, output: 0.60 },
   'gpt-4-turbo': { input: 10.00, output: 30.00 },
@@ -17,6 +42,10 @@ export const PRICING = {
   'o1-mini': { input: 3.00, output: 12.00 },
   
   // Anthropic
+  'claude-opus-4-7': { input: 5.00, output: 25.00 },
+  'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+  'claude-sonnet-4-5': { input: 3.00, output: 15.00 },
+  'claude-haiku-4-5': { input: 1.00, output: 5.00 },
   'claude-3-5-sonnet-20241022': { input: 3.00, output: 15.00 },
   'claude-3-5-haiku-20241022': { input: 0.80, output: 4.00 },
   'claude-3-opus-20240229': { input: 15.00, output: 75.00 },
@@ -50,26 +79,70 @@ export const PRICING = {
 export function calculateCost(model, usage) {
   if (!usage) return null;
   
-  const pricing = PRICING[model] || PRICING[model.split(':')[0]] || null;
+  const pricing = getPricing(model);
   
   if (!pricing) {
     return null; // Unknown model
   }
   
-  const inputTokens = usage.prompt_tokens || 0;
-  const outputTokens = usage.completion_tokens || 0;
+  const rate = selectPricingRate(pricing, usage);
+  const totalInputTokens = usage.prompt_tokens || usage.input_tokens || 0;
+  const cachedInputTokens = getCachedInputTokens(usage);
+  const billableInputTokens = Math.max(0, totalInputTokens - cachedInputTokens);
+  const outputTokens = usage.completion_tokens || usage.output_tokens || 0;
   
-  const inputCost = (inputTokens / 1_000_000) * pricing.input;
-  const outputCost = (outputTokens / 1_000_000) * pricing.output;
+  const inputCost = (billableInputTokens / 1_000_000) * rate.input;
+  const cachedInputRate = rate.cachedInput === null || rate.cachedInput === undefined
+    ? rate.input
+    : rate.cachedInput;
+  const cachedInputCost = (cachedInputTokens / 1_000_000) * cachedInputRate;
+  const outputCost = (outputTokens / 1_000_000) * rate.output;
   
-  return inputCost + outputCost;
+  return inputCost + cachedInputCost + outputCost;
+}
+
+export function selectPricingRate(pricing, usage = {}) {
+  if (usesLongContext(usage) && pricing.longContext) return pricing.longContext;
+  const tier = String(usage.service_tier || usage.serviceTier || usage.processing_tier || usage.processingTier || '').toLowerCase();
+  return tier === 'priority' && pricing.priority ? pricing.priority : pricing;
+}
+
+function usesLongContext(usage = {}) {
+  if (usage.long_context || usage.longContext || usage.context_type === 'long' || usage.contextType === 'long') return true;
+  const explicitContextLength = Number(usage.context_length ?? usage.contextLength ?? 0);
+  if (explicitContextLength > 270_000) return true;
+  const inputTokens = Number(usage.prompt_tokens || usage.input_tokens || 0);
+  return inputTokens > 270_000;
+}
+
+export function getCachedInputTokens(usage = {}) {
+  return usage.cached_input_tokens
+    || usage.cachedInputTokens
+    || usage.prompt_tokens_details?.cached_tokens
+    || usage.input_tokens_details?.cached_tokens
+    || 0;
 }
 
 /**
  * Get pricing info for a model
  */
 export function getPricing(model) {
-  return PRICING[model] || PRICING[model.split(':')[0]] || null;
+  if (!model) return null;
+  const modelName = String(model);
+  return PRICING[modelName]
+    || PRICING[modelName.split(':')[0]]
+    || PRICING[stripDateVersion(modelName)]
+    || null;
+}
+
+export function hasKnownPricing(model) {
+  return Boolean(getPricing(model));
+}
+
+function stripDateVersion(model) {
+  return model
+    .replace(/-\d{4}-\d{2}-\d{2}$/, '')
+    .replace(/-\d{4}$/, '');
 }
 
 /**
@@ -118,8 +191,9 @@ export function estimateBatchCost(testCases, models) {
     for (const model of models) {
       const pricing = getPricing(model.model);
       if (pricing) {
-        estimate += (promptTokens / 1_000_000) * pricing.input;
-        estimate += (maxOutputTokens / 1_000_000) * pricing.output;
+        const rate = selectPricingRate(pricing, model);
+        estimate += (promptTokens / 1_000_000) * rate.input;
+        estimate += (maxOutputTokens / 1_000_000) * rate.output;
       }
     }
   }

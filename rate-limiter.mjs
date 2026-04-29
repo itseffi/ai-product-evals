@@ -9,6 +9,7 @@ class RateLimiter {
     this.requestsPerMinute = options.requestsPerMinute || 60;
     this.tokensPerMinute = options.tokensPerMinute || 100000;
     this.retryAfterMs = options.retryAfterMs || 1000;
+    this.maxRetries = options.maxRetries ?? 3;
     
     // Token buckets
     this.requestTokens = this.requestsPerMinute;
@@ -74,26 +75,40 @@ class RateLimiter {
    * Execute a function with rate limiting
    */
   async execute(fn, estimatedTokens = 1000) {
-    await this.waitForCapacity(estimatedTokens);
-    
-    try {
-      const result = await fn();
-      
-      // Consume actual tokens if available
-      const actualTokens = result?.usage?.total_tokens || estimatedTokens;
-      this.consume(actualTokens);
-      
-      return result;
-    } catch (error) {
-      // Handle rate limit errors
-      if (error.message?.includes('429') || error.message?.includes('rate limit')) {
-        // Wait and retry
-        await new Promise(resolve => setTimeout(resolve, this.retryAfterMs * 2));
-        return this.execute(fn, estimatedTokens);
+    let lastError = null;
+
+    // maxRetries counts retries after the first try, so maxRetries=3 allows 4 total attempts.
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      await this.waitForCapacity(estimatedTokens);
+
+      try {
+        const result = await fn();
+
+        // Consume actual tokens if available
+        const actualTokens = result?.usage?.total_tokens || estimatedTokens;
+        this.consume(actualTokens);
+
+        return result;
+      } catch (error) {
+        lastError = error;
+        if (!isRateLimitError(error) || attempt === this.maxRetries) {
+          throw error;
+        }
+
+        const exponential = this.retryAfterMs * (2 ** attempt);
+        const jitter = Math.floor(Math.random() * this.retryAfterMs);
+        const waitMs = Math.min(exponential + jitter, 30000);
+        await new Promise(resolve => setTimeout(resolve, waitMs));
       }
-      throw error;
     }
+
+    throw lastError;
   }
+}
+
+function isRateLimitError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('429') || message.includes('rate limit') || message.includes('rate-limit');
 }
 
 // Provider-specific rate limiters

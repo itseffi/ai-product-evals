@@ -59,6 +59,8 @@ Prefer structured fields over only free-form notes, such as:
 
 These labels should be reusable later for evaluator validation or dataset cleanup.
 
+Use the schema in `docs/schemas/labels.md`. Review exports should be consumable by `scripts/validate-evaluator.mjs`, `scripts/promote-labels-to-eval.mjs`, and `scripts/error-analysis.mjs`.
+
 ### Use Review To Improve The Eval Pipeline
 
 The interface should help answer:
@@ -75,6 +77,8 @@ The interface should help answer:
 - `tracer.mjs`
 - `run-eval.mjs`
 - `evaluators/index.mjs`
+- `labels/schema.mjs`
+- `docs/schemas/labels.md`
 
 ## Anti-Patterns
 

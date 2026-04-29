@@ -1,9 +1,34 @@
 {
   "name": "RAG Pipeline Evaluation",
-  "description": "Evaluate retrieval-augmented generation with provided context",
+  "description": "Evaluate retrieval quality and grounded generation separately",
   "test_cases": [
     {
+      "name": "Retrieval Recall",
+      "eval_type": "rag_retrieval",
+      "question": "What changed in React 18 automatic batching?",
+      "retrieved_context_ids": ["react-18-batching", "postgres-16-parallelism", "rag-chunking"],
+      "expected_relevant_context_ids": ["react-18-batching"],
+      "k": 3,
+      "threshold": 1,
+      "contexts": [
+        {
+          "id": "react-18-batching",
+          "text": "React 18 introduces automatic batching for state updates."
+        },
+        {
+          "id": "postgres-16-parallelism",
+          "text": "PostgreSQL 16 includes query parallelism improvements."
+        },
+        {
+          "id": "rag-chunking",
+          "text": "RAG chunk size affects retrieval quality."
+        }
+      ]
+    },
+    {
       "name": "Accurate Extraction",
+      "eval_type": "rag_faithfulness",
+      "judge_template": "rag-faithfulness",
       "system_prompt": "Answer based ONLY on the provided context. If the answer isn't in the context, say 'Not found in context'.",
       "prompt": "Context:\n---\nReact 18 introduces automatic batching for state updates. Previously, React only batched updates inside event handlers. With React 18, updates inside timeouts, promises, and native event handlers are also batched.\n---\n\nQuestion: What is automatic batching in React 18?",
       "expected_contains": ["automatic batching", "state updates"],
@@ -12,6 +37,8 @@
     },
     {
       "name": "Hallucination Resistance",
+      "eval_type": "rag_faithfulness",
+      "judge_template": "rag-faithfulness",
       "system_prompt": "Answer based ONLY on the provided context. If the information is not available, clearly state that.",
       "prompt": "Context:\n---\nPostgreSQL 16 was released in September 2023. It includes improvements to query parallelism.\n---\n\nQuestion: What features does PostgreSQL 17 include?",
       "expected_contains": ["not", "context"],
@@ -20,6 +47,8 @@
     },
     {
       "name": "Multi-Source Synthesis",
+      "eval_type": "rag_answer_relevance",
+      "judge_template": "rag-answer-relevance",
       "system_prompt": "Synthesize information from all context chunks to answer comprehensively.",
       "prompt": "Chunk 1: Vector databases store data as high-dimensional vectors for similarity search.\nChunk 2: Embedding models like OpenAI's ada-002 convert text to 1536-dimensional vectors.\nChunk 3: For RAG, chunk size affects quality - smaller chunks are more precise, larger ones have more context.\n\nQuestion: What are the key components of a RAG system?",
       "expected_contains": ["vector", "embedding", "chunk"],
@@ -28,6 +57,8 @@
     },
     {
       "name": "Code Context Understanding",
+      "eval_type": "rag_answer_relevance",
+      "judge_template": "rag-answer-relevance",
       "system_prompt": "Analyze the code and answer accurately.",
       "prompt": "Context:\n```python\n@app.route('/users/<int:user_id>')\n@require_auth\ndef get_user(user_id):\n    user = User.query.get_or_404(user_id)\n    return jsonify(user.to_dict())\n```\n\nQuestion: What does this endpoint do and what authentication is required?",
       "expected_contains": ["user", "auth", "GET"],

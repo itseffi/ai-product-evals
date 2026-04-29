@@ -11,10 +11,19 @@
     "eval:code": "node run-eval.mjs evals/code-generation.json",
     "eval:rag": "node run-eval.mjs evals/rag-pipeline.json",
     "eval:agent": "node run-eval.mjs evals/agent-tools.json",
+    "eval:judge-bias": "node run-eval.mjs evals/judge-bias-checks.json",
     "skill:eval-audit": "node scripts/eval-audit.mjs",
     "skill:eval-audit:json": "node scripts/eval-audit.mjs --json",
     "skill:error-analysis": "node scripts/error-analysis.mjs",
-    "skill:error-analysis:json": "node scripts/error-analysis.mjs --json"
+    "skill:error-analysis:json": "node scripts/error-analysis.mjs --json",
+    "skill:validate-evaluator": "node scripts/validate-evaluator.mjs",
+    "skill:validate-evaluator:json": "node scripts/validate-evaluator.mjs --json",
+    "skill:judge-bias-check": "node scripts/judge-bias-check.mjs",
+    "skill:judge-bias-check:json": "node scripts/judge-bias-check.mjs --json",
+    "skill:propose-judge-patch": "node scripts/propose-judge-patch.mjs",
+    "skill:propose-judge-patch:json": "node scripts/propose-judge-patch.mjs --json",
+    "skill:monitor": "node scripts/monitor-traces.mjs",
+    "skill:monitor:json": "node scripts/monitor-traces.mjs --json"
   },
   "keywords": [
     "ai",

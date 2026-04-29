@@ -8,6 +8,7 @@ import { OpenRouterProvider } from './openrouter.mjs';
 import { OpenAIProvider } from './openai.mjs';
 import { AnthropicProvider } from './anthropic.mjs';
 import { GoogleProvider } from './google.mjs';
+import { parseEnvInteger } from '../env-utils.mjs';
 
 const PROVIDERS = {
   ollama: OllamaProvider,
@@ -19,6 +20,7 @@ const PROVIDERS = {
 
 // Provider instances cache
 const instances = {};
+const DEFAULT_PROVIDER_CACHE_TTL_MS = 5 * 60 * 1000;
 
 /**
  * Get a provider instance by name
@@ -36,18 +38,36 @@ export function getProvider(name, config = {}) {
   // Cache provider instances unless config is passed
   const cacheKey = Object.keys(config).length === 0 ? normalizedName : null;
   
-  if (cacheKey && instances[cacheKey]) {
-    return instances[cacheKey];
+  if (cacheKey && instances[cacheKey] && !isProviderCacheExpired(instances[cacheKey])) {
+    return instances[cacheKey].instance;
   }
 
   const ProviderClass = PROVIDERS[normalizedName];
   const instance = new ProviderClass(config);
 
   if (cacheKey) {
-    instances[cacheKey] = instance;
+    instances[cacheKey] = {
+      instance,
+      createdAt: Date.now(),
+    };
   }
 
   return instance;
+}
+
+function isProviderCacheExpired(entry) {
+  const ttlMs = parseEnvInteger(process.env.PROVIDER_CACHE_TTL_MS, DEFAULT_PROVIDER_CACHE_TTL_MS, { min: 0, max: 30 * 60 * 1000 });
+  return Date.now() - entry.createdAt > ttlMs;
+}
+
+export function invalidateProvider(name) {
+  if (name) {
+    delete instances[name.toLowerCase()];
+  } else {
+    for (const key of Object.keys(instances)) {
+      delete instances[key];
+    }
+  }
 }
 
 /**

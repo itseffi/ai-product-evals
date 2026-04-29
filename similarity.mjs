@@ -5,6 +5,7 @@
  */
 
 import { getProvider } from './providers/index.mjs';
+import { parseEnvInteger } from './env-utils.mjs';
 
 /**
  * Get embeddings from OpenAI
@@ -40,24 +41,30 @@ async function getOpenAIEmbeddings(texts) {
  */
 async function getOllamaEmbeddings(texts) {
   const baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-  
+
+  const concurrency = parseEnvInteger(process.env.OLLAMA_EMBEDDING_CONCURRENCY, 4, { min: 1, max: 32 });
   const embeddings = [];
-  for (const text of texts) {
-    const response = await fetch(`${baseUrl}/api/embeddings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'nomic-embed-text',
-        prompt: text,
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Ollama embeddings error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    embeddings.push(data.embedding);
+
+  for (let i = 0; i < texts.length; i += concurrency) {
+    const batch = texts.slice(i, i + concurrency);
+    const batchEmbeddings = await Promise.all(batch.map(async text => {
+      const response = await fetch(`${baseUrl}/api/embeddings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'nomic-embed-text',
+          prompt: text,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ollama embeddings error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.embedding;
+    }));
+    embeddings.push(...batchEmbeddings);
   }
   
   return embeddings;
@@ -74,8 +81,8 @@ export async function getEmbeddings(texts, provider = null) {
     return getOpenAIEmbeddings(textArray);
   }
   
-  // Fall back to Ollama
-  if (process.env.OLLAMA_BASE_URL || true) {
+  // Fall back to Ollama only when explicitly configured.
+  if (process.env.OLLAMA_BASE_URL) {
     try {
       return await getOllamaEmbeddings(textArray);
     } catch (e) {

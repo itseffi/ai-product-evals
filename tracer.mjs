@@ -46,9 +46,25 @@ export function addTraceResult(trace, result) {
     score: result.score,
     evalType: result.evalType,
     evalReason: result.evalReason,
+    winner: result.winner || result.metadata?.winner || null,
+    expectedWinner: result.expectedWinner || result.metadata?.expectedWinner || null,
+    shownWinner: result.shownWinner || result.metadata?.shownWinner || null,
+    order: result.order || result.metadata?.order || null,
+    panelResults: result.panelResults || result.metadata?.panelResults || null,
     latencyMs: result.latencyMs,
     cost: result.cost,
+    costUnknown: result.costUnknown || result.metadata?.cost_unknown || false,
+    judgeCost: result.metadata?.judge_cost ?? null,
     usage: result.usage,
+    promptVersion: result.promptVersion || result.metadata?.prompt_version || null,
+    judgeTemplateHash: result.judgeTemplateHash || result.metadata?.judge_template_hash || null,
+    judgePromptHash: result.judgePromptHash || result.metadata?.judge_prompt_hash || null,
+    metadata: result.metadata || {},
+    transcript: result.transcript || null,
+    messages: result.messages || null,
+    toolCalls: result.toolCalls || null,
+    toolResults: result.toolResults || null,
+    retries: result.retries || 0,
     // Full request/response for debugging
     request: {
       prompt: result.prompt,
@@ -137,17 +153,24 @@ export function compareTraces(oldTraceId, newTraceId) {
   
   const regressions = [];
   const improvements = [];
+  const resultKey = r => [
+    r.testCase,
+    `${r.provider}/${r.model}`,
+    r.evalType || 'unknown',
+    r.promptVersion || 'no-prompt-version',
+    r.metadata?.judge_template || r.metadata?.judgeTemplate || 'no-judge-template',
+  ].join('|');
   
   // Build lookup for old results
   const oldResults = {};
   for (const r of oldTrace.results) {
-    const key = `${r.testCase}|${r.provider}/${r.model}`;
+    const key = resultKey(r);
     oldResults[key] = r;
   }
   
   // Compare with new results
   for (const newResult of newTrace.results) {
-    const key = `${newResult.testCase}|${newResult.provider}/${newResult.model}`;
+    const key = resultKey(newResult);
     const oldResult = oldResults[key];
     
     if (oldResult) {

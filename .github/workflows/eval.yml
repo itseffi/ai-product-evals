@@ -6,7 +6,13 @@ on:
     paths:
       - 'evals/**'
       - 'evaluators/**'
+      - 'judges/**'
+      - 'labels/**'
       - 'providers/**'
+      - 'scripts/**'
+      - 'app.html'
+      - 'dataset.mjs'
+      - 'tracer.mjs'
       - 'run-eval.mjs'
 
   pull_request:
@@ -60,7 +66,7 @@ jobs:
 
           case "$PROVIDER" in
             openai)
-              MODEL="gpt-5.4"
+              MODEL="gpt-5.5"
               API_KEY="$OPENAI_API_KEY"
               ;;
             anthropic)
@@ -101,6 +107,8 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DEFAULT_PROVIDER: ${{ steps.prepare.outputs.provider }}
+          JUDGE_PROVIDER: ${{ steps.prepare.outputs.provider }}
+          JUDGE_MODEL: ${{ steps.prepare.outputs.model }}
         run: |
           echo "Running eval: ${{ steps.prepare.outputs.eval_file }}"
           echo "Provider: ${{ steps.prepare.outputs.provider }}"
@@ -108,8 +116,10 @@ jobs:
           node run-eval.mjs "${{ steps.prepare.outputs.eval_file }}" \
             --provider "${{ steps.prepare.outputs.provider }}" \
             --model "${{ steps.prepare.outputs.model }}" \
-            --skip-judge \
-            --output eval-results.md
+            --format json \
+            --output eval-results.json \
+            --markdown-output eval-results.md \
+            --allow-failures
 
       - name: Upload results
         if: steps.prepare.outputs.available == 'true'
@@ -119,6 +129,7 @@ jobs:
           if-no-files-found: warn
           path: |
             eval-results.md
+            eval-results.json
             traces/
           retention-days: 30
 
@@ -145,19 +156,7 @@ jobs:
         run: |
           echo "Checking for regressions..."
 
-          PASS_RATE=$(grep -oP 'Pass: \K\d+' eval-results.md | head -1 || echo "0")
-          TOTAL=$(grep -oP 'Total Requests: \K\d+' eval-results.md || echo "1")
-
-          if [ "$TOTAL" -gt 0 ]; then
-            RATE=$((PASS_RATE * 100 / TOTAL))
-            echo "Pass rate: $RATE%"
-
-            THRESHOLD="${{ vars.EVAL_PASS_THRESHOLD || 70 }}"
-            if [ "$RATE" -lt "$THRESHOLD" ]; then
-              echo "::error::Pass rate $RATE% is below threshold $THRESHOLD%"
-              exit 1
-            fi
-          fi
+          node scripts/check-eval-threshold.mjs eval-results.json --threshold "${{ vars.EVAL_PASS_THRESHOLD || 70 }}"
 
   compare:
     name: Compare Models (${{ matrix.provider }})
@@ -192,7 +191,7 @@ jobs:
 
           case "$PROVIDER" in
             openai)
-              MODEL="gpt-5.4"
+              MODEL="gpt-5.5"
               API_KEY="$OPENAI_API_KEY"
               ;;
             anthropic)

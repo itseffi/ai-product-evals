@@ -22,6 +22,16 @@ Run the relevant eval suite and collect traces. Inspect `traces/`, `run-eval.mjs
 
 ## Core Instructions
 
+### Check Human-Labeled Pivots
+
+Run:
+
+```bash
+npm run skill:error-analysis
+```
+
+If labels exist under `labels/`, the script includes pivots by `failure_mode`, `feature`, `scenario`, `persona`, and `suite`. Use those pivots to prioritize fixes before changing prompts or eval metrics.
+
 ### Start With Real Outputs
 
 For the failing suite, inspect:
@@ -72,6 +82,8 @@ Examples:
 - `evaluators/index.mjs`
 - `evals/`
 - `app.html`
+- `labels/`
+- `docs/schemas/labels.md`
 
 ## Anti-Patterns
 

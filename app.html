@@ -4,10 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LLM Data Review</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -189,6 +185,14 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
+
+    .chart-note {
+      display: block;
+      margin-top: -10px;
+      margin-bottom: 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
     
     .tooltip-icon {
       display: inline-flex;
@@ -236,6 +240,12 @@
     
     .chart-container {
       height: 150px;
+    }
+
+    .chart-container .mini-chart {
+      width: 100%;
+      height: 100%;
+      display: block;
     }
     
     /* Main Content */
@@ -779,15 +789,17 @@
       <aside class="sidebar">
         <div class="chart-card">
           <h3>LLM <> Human Agreement Rate <span class="tooltip-icon" data-tooltip="Percentage where model outcome matches human outcome">?</span></h3>
+          <span class="chart-note" id="agreementChartNote">No data</span>
           <div class="chart-container">
-            <canvas id="agreementChart"></canvas>
+            <div id="agreementChart" class="mini-chart" role="img" aria-label="LLM human agreement chart"></div>
           </div>
         </div>
         
         <div class="chart-card">
           <h3>Human Acceptance Rate <span class="tooltip-icon" data-tooltip="Percentage of records accepted by humans">?</span></h3>
+          <span class="chart-note" id="acceptanceChartNote">No data</span>
           <div class="chart-container">
-            <canvas id="acceptanceChart"></canvas>
+            <div id="acceptanceChart" class="mini-chart" role="img" aria-label="Human acceptance chart"></div>
           </div>
         </div>
 
@@ -887,6 +899,7 @@
     
     // Charts
     let agreementChart, acceptanceChart;
+    const miniCharts = {};
     
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
@@ -895,53 +908,83 @@
     });
     
     function initCharts() {
-      const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { 
-            beginAtZero: true, 
-            max: 100,
-            ticks: { callback: v => v + '%' }
-          },
-          x: { display: true }
-        },
-        elements: {
-          line: { tension: 0.3 },
-          point: { radius: 4 }
-        }
-      };
-      
-      agreementChart = new Chart(document.getElementById('agreementChart'), {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            data: [],
-            borderColor: '#8b5cf6',
-            backgroundColor: 'rgba(139, 92, 246, 0.08)',
-            fill: true,
-            borderWidth: 2
-          }]
-        },
-        options: chartOptions
-      });
+      agreementChart = createMiniChart(document.getElementById('agreementChart'), '#5e6ad2');
+      acceptanceChart = createMiniChart(document.getElementById('acceptanceChart'), '#3b82f6');
+    }
 
-      acceptanceChart = new Chart(document.getElementById('acceptanceChart'), {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            data: [],
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.08)',
-            fill: true,
-            borderWidth: 2
-          }]
+    function createMiniChart(container, color) {
+      const chart = {
+        container,
+        color,
+        data: { labels: [], datasets: [{ data: [] }], emptyLabel: 'No data' },
+        update() {
+          renderMiniChart(
+            this.container,
+            this.data.datasets[0].data,
+            this.color,
+            this.data.labels,
+            this.data.emptyLabel
+          );
         },
-        options: chartOptions
+      };
+      miniCharts[container.id] = chart;
+      chart.update();
+      return chart;
+    }
+
+    function renderMiniChart(container, data, color, labels = [], emptyLabel = 'No data') {
+      if (!container) return;
+      const width = 260;
+      const height = 150;
+      const padLeft = 34;
+      const padRight = 12;
+      const padTop = 12;
+      const padBottom = 28;
+      const plotWidth = width - padLeft - padRight;
+      const plotHeight = height - padTop - padBottom;
+      const values = Array.isArray(data) ? data.filter(value => Number.isFinite(Number(value))).map(Number) : [];
+      const gridLines = [0, 50, 100].map(value => {
+        const y = padTop + (1 - value / 100) * plotHeight;
+        return `<line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="#e5e7eb" stroke-width="1" />
+          <text x="4" y="${y + 4}" fill="#9ca3af" font-size="10">${value}</text>`;
+      }).join('');
+
+      if (values.length === 0) {
+        container.innerHTML = `
+          <svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+            ${gridLines}
+            <text x="${width / 2}" y="${height / 2}" fill="#9ca3af" font-size="12" text-anchor="middle">${escapeHtml(emptyLabel)}</text>
+          </svg>
+        `;
+        return;
+      }
+
+      const points = values.map((value, index) => {
+        const x = padLeft + (values.length === 1 ? plotWidth / 2 : (index / (values.length - 1)) * plotWidth);
+        const y = padTop + (1 - Math.max(0, Math.min(100, value)) / 100) * plotHeight;
+        return { x, y };
       });
+      const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
+      const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${height - padBottom} L ${points[0].x.toFixed(2)} ${height - padBottom} Z`;
+      const markerSvg = points.map(point => `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="3" fill="${color}" />`).join('');
+      const latest = Math.round(values[values.length - 1]);
+      const latestLabel = labels.length > 0 ? String(labels[labels.length - 1]).slice(0, 10) : '';
+      const latestPoint = points[points.length - 1];
+      const labelFitsRight = latestPoint.x <= width - padRight - 34;
+      const valueLabelX = labelFitsRight ? latestPoint.x + 8 : latestPoint.x - 8;
+      const valueLabelY = Math.max(padTop + 6, Math.min(height - padBottom - 6, latestPoint.y - 8));
+      const valueLabelAnchor = labelFitsRight ? 'start' : 'end';
+
+      container.innerHTML = `
+        <svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+          ${gridLines}
+          <path d="${areaPath}" fill="${color}" opacity="0.12"></path>
+          <path d="${linePath}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+          ${markerSvg}
+          <text x="${valueLabelX.toFixed(2)}" y="${valueLabelY.toFixed(2)}" fill="#4b5563" font-size="11" text-anchor="${valueLabelAnchor}">${latest}%</text>
+          <text x="${padLeft}" y="${height - 6}" fill="#9ca3af" font-size="10">${escapeHtml(latestLabel)}</text>
+        </svg>
+      `;
     }
     
     function setupEventListeners() {
@@ -973,9 +1016,10 @@
       const reviewed = records.filter(r => r.status !== 'pending');
       const accepted = records.filter(r => r.status === 'accepted');
       const rejected = records.filter(r => r.status === 'rejected');
-      const agreed = records.filter(r => r.agreement === true);
+      const comparable = reviewed.filter(r => r.agreement !== null && r.agreement !== undefined);
+      const agreed = comparable.filter(r => r.agreement === true);
       
-      const agreementRate = reviewed.length > 0 ? (agreed.length / reviewed.length * 100).toFixed(1) : 0;
+      const agreementRate = comparable.length > 0 ? (agreed.length / comparable.length * 100).toFixed(1) : 0;
       const acceptanceRate = reviewed.length > 0 ? (accepted.length / reviewed.length * 100).toFixed(1) : 0;
       
       // Group by model outcome
@@ -994,7 +1038,7 @@
       
       const sourceRows = Object.entries(bySource).map(([src, data]) => `
         <tr>
-          <td style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">${src}</td>
+          <td style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">${escapeHtml(src)}</td>
           <td style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">${data.total}</td>
           <td style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">${data.accepted}</td>
           <td style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">${data.rejected}</td>
@@ -1094,30 +1138,129 @@
       e.target.value = '';
     }
     
-    function parseCSV(text) {
-      const lines = text.trim().split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
-      
-      for (let i = 1; i < lines.length; i++) {
-        const values = parseCSVLine(lines[i]);
-        const record = {
-          id: `csv-${Date.now()}-${i}`,
-          iteration: parseInt(values[headers.indexOf('Iteration')] || '1'),
-          modelResponse: values[headers.indexOf('Model response')] || '',
-          modelCritique: values[headers.indexOf('Model critique')] || '',
-          modelOutcome: values[headers.indexOf('Model outcome')] || '',
-          humanCritique: values[headers.indexOf('Human critique')] || '',
-          humanOutcome: values[headers.indexOf('Human outcome')] || '',
-          humanRevisedResponse: values[headers.indexOf('Human revised response')] || '',
-          agreement: values[headers.indexOf('Agreement')]?.toUpperCase() === 'TRUE',
-          status: values[headers.indexOf('Human outcome')] ? 
-            (values[headers.indexOf('Human outcome')] === 'good' ? 'accepted' : 'rejected') : 'pending',
-          source: 'csv',
-          timestamp: new Date().toISOString(),
-        };
-        records.push(record);
-      }
-    }
+	    function parseCSV(text) {
+	      const rows = parseCSVRows(text);
+	      if (rows.length === 0) return;
+	      const headers = rows[0].map(normalizeHeader);
+	      const isGoldLabelCsv = headers.includes('human_pass') && headers.includes('response');
+	      
+	      for (let i = 1; i < rows.length; i++) {
+	        const values = rows[i];
+	        const get = name => values[headers.indexOf(normalizeHeader(name))] || '';
+	        const humanPass = parseBooleanLabel(get('human_pass'));
+	        const record = isGoldLabelCsv
+	          ? {
+	              id: get('id') || `csv-${Date.now()}-${i}`,
+	              prompt: get('prompt'),
+	              modelResponse: get('response'),
+	              modelCritique: get('critique'),
+	              modelOutcome: humanPass === true ? 'good' : humanPass === false ? 'bad' : '',
+	              humanCritique: get('critique'),
+	              humanOutcome: humanPass === true ? 'good' : humanPass === false ? 'bad' : '',
+	              humanRevisedResponse: get('response'),
+	              agreement: null,
+	              status: humanPass === null ? 'pending' : humanPass ? 'accepted' : 'rejected',
+	              source: 'csv',
+	              sourceTraceId: get('source_trace_id'),
+	              testCase: get('suite'),
+	              failureMode: get('failure_mode'),
+	              referenceAnswer: get('reference_answer'),
+	              feature: get('feature'),
+	              scenario: get('scenario'),
+	              persona: get('persona'),
+	              reviewer: get('reviewer'),
+	              reviewerLabels: parseReviewerLabels(get('reviewer_labels')),
+	              reviewedAt: get('reviewed_at'),
+	              timestamp: get('reviewed_at') || new Date().toISOString(),
+	            }
+	          : {
+	              id: `csv-${Date.now()}-${i}`,
+	              iteration: parseInt(get('Iteration') || '1'),
+	              prompt: get('prompt'),
+	              modelResponse: get('Model response'),
+	              modelCritique: get('Model critique'),
+	              modelOutcome: normalizeOutcome(get('Model outcome')),
+	              humanCritique: get('Human critique'),
+	              humanOutcome: normalizeOutcome(get('Human outcome')),
+	              humanRevisedResponse: get('Human revised response'),
+	              referenceAnswer: get('reference_answer'),
+	              agreement: parseBooleanLabel(get('Agreement')),
+	              status: get('Human outcome')
+	                ? (normalizeOutcome(get('Human outcome')) === 'good' ? 'accepted' : 'rejected')
+	                : 'pending',
+	              source: 'csv',
+	              timestamp: new Date().toISOString(),
+	            };
+	        records.push(record);
+	      }
+	    }
+
+	    function normalizeOutcome(value) {
+	      const normalized = String(value || '').trim().toLowerCase();
+	      if (['good', 'pass', 'passed', 'true', 'yes', '1'].includes(normalized)) return 'good';
+	      if (['bad', 'fail', 'failed', 'false', 'no', '0'].includes(normalized)) return 'bad';
+	      return '';
+	    }
+
+	    function normalizeHeader(header) {
+	      return String(header || '')
+	        .trim()
+	        .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+	        .toLowerCase()
+	        .replace(/[^a-z0-9]+/g, '_')
+	        .replace(/^_+|_+$/g, '');
+	    }
+
+	    function parseCSVRows(text) {
+	      const rows = [];
+	      let row = [];
+	      let current = '';
+	      let inQuotes = false;
+	      const input = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+	      for (let i = 0; i < input.length; i++) {
+	        const char = input[i];
+	        if (char === '"') {
+	          if (inQuotes && input[i + 1] === '"') {
+	            current += '"';
+	            i++;
+	          } else {
+	            inQuotes = !inQuotes;
+	          }
+	        } else if (char === ',' && !inQuotes) {
+	          row.push(current.trim());
+	          current = '';
+	        } else if (char === '\n' && !inQuotes) {
+	          row.push(current.trim());
+	          if (row.some(value => value !== '')) rows.push(row);
+	          row = [];
+	          current = '';
+	        } else {
+	          current += char;
+	        }
+	      }
+
+	      row.push(current.trim());
+	      if (row.some(value => value !== '')) rows.push(row);
+	      return rows;
+	    }
+
+	    function parseBooleanLabel(value) {
+	      const normalized = String(value || '').trim().toLowerCase();
+	      if (['true', 'yes', 'pass', 'passed', 'good', '1'].includes(normalized)) return true;
+	      if (['false', 'no', 'fail', 'failed', 'bad', '0'].includes(normalized)) return false;
+	      return null;
+	    }
+
+	    function parseReviewerLabels(value) {
+	      if (!value) return [];
+	      try {
+	        const parsed = JSON.parse(value);
+	        return Array.isArray(parsed) ? parsed : [];
+	      } catch {
+	        return [];
+	      }
+	    }
     
     function parseCSVLine(line) {
       const result = [];
@@ -1156,7 +1299,7 @@
             systemPrompt: r.request?.systemPrompt || '',
             modelResponse: r.response?.text || '',
             modelCritique: r.evalReason || '',
-            modelOutcome: r.pass ? 'good' : 'bad',
+            modelOutcome: r.pass === true ? 'good' : r.pass === false ? 'bad' : '',
             humanCritique: '',
             humanOutcome: '',
             humanRevisedResponse: '',
@@ -1168,7 +1311,49 @@
             provider: r.provider,
             latencyMs: r.latencyMs,
             score: r.score,
+            winner: r.metadata?.winner || r.winner || '',
+            expectedWinner: r.metadata?.expected_winner || r.metadata?.expectedWinner || '',
+            panelResults: r.metadata?.panelResults || r.panelResults || null,
+            referenceAnswer: r.metadata?.reference_answer || '',
+            sourceTraceId: data.id || '',
+            failureMode: r.metadata?.failure_mode || '',
+            feature: r.metadata?.feature || '',
+            scenario: r.scenario || r.metadata?.scenario || '',
+            persona: r.metadata?.persona || '',
+            promptVersion: r.promptVersion || r.metadata?.prompt_version || '',
+            messages: r.messages || null,
+            transcript: r.transcript || null,
+            toolCalls: r.toolCalls || null,
+            toolResults: r.toolResults || null,
             timestamp: r.timestamp || new Date().toISOString(),
+          });
+        });
+      } else {
+        const labels = Array.isArray(data) ? data : (data.labels || data.examples || []);
+        labels.forEach((label, i) => {
+          const humanPass = parseBooleanLabel(label.human_pass ?? label.humanPass ?? label.human_outcome ?? label.humanOutcome);
+          records.push({
+            id: label.id || `label-json-${Date.now()}-${i}`,
+            prompt: label.prompt || label.input || label.question || '',
+            modelResponse: typeof label.response === 'string' ? label.response : JSON.stringify(label.response || ''),
+            modelCritique: label.critique || '',
+            modelOutcome: humanPass === true ? 'good' : humanPass === false ? 'bad' : '',
+            humanCritique: label.critique || '',
+            humanOutcome: humanPass === true ? 'good' : humanPass === false ? 'bad' : '',
+            humanRevisedResponse: typeof label.response === 'string' ? label.response : JSON.stringify(label.response || ''),
+            referenceAnswer: label.reference_answer || label.referenceAnswer || '',
+            agreement: null,
+            status: humanPass === null ? 'pending' : humanPass ? 'accepted' : 'rejected',
+            source: filename,
+            sourceTraceId: label.source_trace_id || label.sourceTraceId || label.trace_id || '',
+            testCase: label.suite || label.id || '',
+            failureMode: label.failure_mode || label.failureMode || '',
+            feature: label.feature || '',
+            scenario: label.scenario || '',
+            persona: label.persona || '',
+            reviewer: label.reviewer || '',
+            reviewedAt: label.reviewed_at || label.reviewedAt || '',
+            timestamp: label.reviewed_at || label.reviewedAt || new Date().toISOString(),
           });
         });
       }
@@ -1220,13 +1405,18 @@
     function updateStats() {
       const filtered = getFilteredRecords();
       const reviewed = filtered.filter(r => r.status !== 'pending');
+      const comparable = reviewed.filter(r => r.agreement !== null && r.agreement !== undefined);
       const accepted = filtered.filter(r => r.status === 'accepted');
-      const agreed = filtered.filter(r => r.agreement === true);
+      const agreed = comparable.filter(r => r.agreement === true);
+      const modelRated = filtered.filter(r => r.modelOutcome === 'good' || r.modelOutcome === 'bad');
+      const modelGood = modelRated.filter(r => r.modelOutcome === 'good');
       
       document.getElementById('totalRecords').textContent = filtered.length;
       document.getElementById('pendingCount').textContent = filtered.filter(r => r.status === 'pending').length;
-      document.getElementById('agreementRate').textContent = reviewed.length > 0 
-        ? Math.round(agreed.length / reviewed.length * 100) + '%' 
+      document.getElementById('agreementRate').textContent = comparable.length > 0
+        ? Math.round(agreed.length / comparable.length * 100) + '%'
+        : modelRated.length > 0
+          ? Math.round(modelGood.length / modelRated.length * 100) + '%'
         : '0%';
       document.getElementById('acceptanceRate').textContent = reviewed.length > 0 
         ? Math.round(accepted.length / reviewed.length * 100) + '%' 
@@ -1234,29 +1424,81 @@
     }
     
     function updateCharts() {
-      // Group by date
+      // Manual eval CSVs are iteration-based, not date-based. If every loaded
+      // record has an iteration, preserve that x-axis instead of collapsing all
+      // imported rows into today's date.
+      const useIterationBuckets = records.length > 0
+        && records.every(r => Number.isFinite(Number(r.iteration)));
+      const getChartBucket = r => useIterationBuckets
+        ? `Iteration ${Number(r.iteration)}`
+        : r.timestamp?.split('T')[0] || 'Unknown';
+      const sortChartBuckets = (a, b) => {
+        if (useIterationBuckets) {
+          const iterationA = Number(String(a).replace(/^Iteration\s+/, ''));
+          const iterationB = Number(String(b).replace(/^Iteration\s+/, ''));
+          return iterationA - iterationB;
+        }
+        return a.localeCompare(b);
+      };
+
       const byDate = {};
       records.forEach(r => {
-        const date = r.timestamp?.split('T')[0] || 'Unknown';
-        if (!byDate[date]) byDate[date] = { total: 0, agreed: 0, accepted: 0, reviewed: 0 };
+        const date = getChartBucket(r);
+        if (!byDate[date]) {
+          byDate[date] = {
+            total: 0,
+            agreed: 0,
+            comparable: 0,
+            accepted: 0,
+            reviewed: 0,
+            modelRated: 0,
+            modelGood: 0,
+          };
+        }
         byDate[date].total++;
+        if (r.modelOutcome === 'good' || r.modelOutcome === 'bad') {
+          byDate[date].modelRated++;
+          if (r.modelOutcome === 'good') byDate[date].modelGood++;
+        }
         if (r.status !== 'pending') {
           byDate[date].reviewed++;
-          if (r.agreement) byDate[date].agreed++;
+          if (r.agreement !== null && r.agreement !== undefined) {
+            byDate[date].comparable++;
+            if (r.agreement) byDate[date].agreed++;
+          }
           if (r.status === 'accepted') byDate[date].accepted++;
         }
       });
       
-      const dates = Object.keys(byDate).sort();
-      const agreementData = dates.map(d => byDate[d].reviewed > 0 ? Math.round(byDate[d].agreed / byDate[d].reviewed * 100) : 0);
-      const acceptanceData = dates.map(d => byDate[d].reviewed > 0 ? Math.round(byDate[d].accepted / byDate[d].reviewed * 100) : 0);
+      const dates = Object.keys(byDate).sort(sortChartBuckets);
+      const hasComparable = dates.some(d => byDate[d].comparable > 0);
+      const hasModelRated = dates.some(d => byDate[d].modelRated > 0);
+      const hasReviewed = dates.some(d => byDate[d].reviewed > 0);
+      const agreementData = hasComparable
+        ? dates.map(d => byDate[d].comparable > 0 ? Math.round(byDate[d].agreed / byDate[d].comparable * 100) : 0)
+        : hasModelRated
+          ? dates.map(d => byDate[d].modelRated > 0 ? Math.round(byDate[d].modelGood / byDate[d].modelRated * 100) : 0)
+          : [];
+      const acceptanceData = hasReviewed
+        ? dates.map(d => byDate[d].reviewed > 0 ? Math.round(byDate[d].accepted / byDate[d].reviewed * 100) : 0)
+        : [];
       
       agreementChart.data.labels = dates;
       agreementChart.data.datasets[0].data = agreementData;
+      agreementChart.data.emptyLabel = hasModelRated ? 'No human agreement yet' : 'No data';
+      document.getElementById('agreementChartNote').textContent = hasComparable
+        ? 'Human-reviewed agreement'
+        : hasModelRated
+          ? 'Model pass rate until labels exist'
+          : 'No data';
       agreementChart.update();
       
       acceptanceChart.data.labels = dates;
       acceptanceChart.data.datasets[0].data = acceptanceData;
+      acceptanceChart.data.emptyLabel = 'No human reviews yet';
+      document.getElementById('acceptanceChartNote').textContent = hasReviewed
+        ? 'Human-reviewed acceptance'
+        : 'No human reviews yet';
       acceptanceChart.update();
     }
     
@@ -1363,21 +1605,45 @@
       const messages = [];
       let stepNum = 0;
       
-      if (record.systemPrompt) {
-        messages.push({ type: 'system', content: record.systemPrompt, step: ++stepNum });
-      }
-      if (record.prompt) {
-        messages.push({ type: 'user', content: record.prompt, step: ++stepNum });
-      }
-      
-      // Check for function calls in response
-      const toolMatch = record.modelResponse?.match(/TOOL:\s*(\w+)\s*\(([^)]*)\)/i);
-      if (toolMatch) {
-        messages.push({ type: 'function-call', name: toolMatch[1], args: toolMatch[2], step: ++stepNum });
-        if (record.functionResult) {
-          messages.push({ type: 'function-results', content: record.functionResult, step: ++stepNum });
-        }
-      }
+	      if (Array.isArray(record.messages) && record.messages.length > 0) {
+	        record.messages.forEach(message => {
+	          messages.push({
+	            type: message.role || 'message',
+	            content: message.content || JSON.stringify(message),
+	            step: ++stepNum,
+	          });
+	        });
+	      } else {
+	        if (record.systemPrompt) {
+	          messages.push({ type: 'system', content: record.systemPrompt, step: ++stepNum });
+	        }
+	        if (record.prompt) {
+	          messages.push({ type: 'user', content: record.prompt, step: ++stepNum });
+	        }
+	      }
+	      
+	      if (Array.isArray(record.toolCalls) && record.toolCalls.length > 0) {
+	        record.toolCalls.forEach(call => {
+	          const fn = call.function || call;
+	          messages.push({
+	            type: 'function-call',
+	            name: call.name || fn.name || call.tool || 'tool',
+	            args: call.args || call.arguments || fn.arguments || call.input || '',
+	            step: ++stepNum,
+	          });
+	        });
+	      } else {
+	        const toolMatch = record.modelResponse?.match(/TOOL:\s*(\w+)\s*\(([^)]*)\)/i);
+	        if (toolMatch) {
+	        messages.push({ type: 'function-call', name: toolMatch[1], args: toolMatch[2], step: ++stepNum });
+	        }
+	      }
+
+	      if (Array.isArray(record.toolResults) && record.toolResults.length > 0) {
+	        record.toolResults.forEach(result => {
+	          messages.push({ type: 'function-results', content: JSON.stringify(result, null, 2), step: ++stepNum });
+	        });
+	      }
       
       if (record.modelResponse) {
         messages.push({ type: 'assistant', content: record.modelResponse, step: ++stepNum });
@@ -1407,7 +1673,7 @@
             <div class="chat-section">
               <div class="chat-label">ASSISTANT - Function Call ${stepCounter}</div>
               <div class="chat-bubble function-call">
-                <div class="function-name">${escapeHtml(msg.name)}(${escapeHtml(msg.args || '')})</div>
+	                <div class="function-name">${escapeHtml(msg.name)}(${escapeHtml(formatToolArgs(msg.args))})</div>
               </div>
             </div>
           `;
@@ -1451,15 +1717,46 @@
               ${record.modelOutcome || 'Pending'}
             </span>
           </div>
-          <div class="critique-card">
-            <h4>HUMAN EVALUATION</h4>
-            <textarea class="editable-textarea" id="humanCritique" placeholder="Enter your critique...">${escapeHtml(record.humanCritique || '')}</textarea>
-          </div>
-        </div>
-        
-        <div class="editable-section">
-          <div class="editable-label">Editable Output (Human Revised Response)</div>
-          <textarea class="editable-textarea" id="revisedResponse" placeholder="Edit the response if needed...">${escapeHtml(record.humanRevisedResponse || record.modelResponse || '')}</textarea>
+	          <div class="critique-card">
+	            <h4>HUMAN EVALUATION</h4>
+	            <textarea class="editable-textarea" id="humanCritique" placeholder="Enter your critique...">${escapeHtml(record.humanCritique || '')}</textarea>
+	          </div>
+	        </div>
+
+	        <div class="editable-section">
+	          <div class="editable-label">Label Metadata</div>
+	          <div class="metadata-grid">
+	            <div class="metadata-item">
+	              <label>Failure Mode</label>
+	              <input id="failureModeInput" value="${escapeHtml(record.failureMode || '')}" placeholder="e.g. hallucination">
+	            </div>
+	            <div class="metadata-item">
+	              <label>Feature</label>
+	              <input id="featureInput" value="${escapeHtml(record.feature || '')}" placeholder="e.g. rag_answering">
+	            </div>
+	            <div class="metadata-item">
+	              <label>Scenario</label>
+	              <input id="scenarioInput" value="${escapeHtml(record.scenario || '')}" placeholder="e.g. ambiguous_context">
+	            </div>
+	            <div class="metadata-item">
+	              <label>Persona</label>
+	              <input id="personaInput" value="${escapeHtml(record.persona || '')}" placeholder="e.g. developer">
+	            </div>
+	            <div class="metadata-item">
+	              <label>Reviewer</label>
+	              <input id="reviewerInput" value="${escapeHtml(record.reviewer || '')}" placeholder="e.g. reviewer-id">
+	            </div>
+	          </div>
+	        </div>
+
+	        <div class="editable-section">
+	          <div class="editable-label">Reference Answer</div>
+	          <textarea class="editable-textarea" id="referenceAnswerInput" placeholder="Optional reference answer for judge validation...">${escapeHtml(record.referenceAnswer || '')}</textarea>
+	        </div>
+	        
+	        <div class="editable-section">
+	          <div class="editable-label">Editable Output (Human Revised Response)</div>
+	          <textarea class="editable-textarea" id="revisedResponse" placeholder="Edit the response if needed...">${escapeHtml(record.humanRevisedResponse || record.modelResponse || '')}</textarea>
         </div>
         
         <div class="actions">
@@ -1472,24 +1769,39 @@
       `;
     }
     
-    function renderFunctionsTab(record) {
-      const content = document.getElementById('tabContent');
-      let functionsHtml = '<p>No function calls detected.</p>';
-      
-      // Try to parse function calls from response
-      const toolMatch = record.modelResponse?.match(/TOOL:\s*(\w+)\s*\(([^)]*)\)/i);
-      if (toolMatch) {
-        functionsHtml = `
-          <div class="metadata-item">
-            <label>Function Name</label>
-            <span>${toolMatch[1]}</span>
-          </div>
-          <div class="metadata-item">
-            <label>Arguments</label>
-            <span>${toolMatch[2] || 'none'}</span>
-          </div>
-        `;
-      }
+	    function renderFunctionsTab(record) {
+	      const content = document.getElementById('tabContent');
+	      let functionsHtml = '<p>No function calls detected.</p>';
+	      
+	      if (Array.isArray(record.toolCalls) && record.toolCalls.length > 0) {
+	        functionsHtml = record.toolCalls.map(call => {
+	          const fn = call.function || call;
+	          return `
+	            <div class="metadata-item">
+	              <label>Function Name</label>
+	              <span>${escapeHtml(call.name || fn.name || call.tool || 'tool')}</span>
+	            </div>
+	            <div class="metadata-item">
+	              <label>Arguments</label>
+	              <span>${escapeHtml(formatToolArgs(call.args || call.arguments || fn.arguments || call.input || '')) || 'none'}</span>
+	            </div>
+	          `;
+	        }).join('');
+	      } else {
+	        const toolMatch = record.modelResponse?.match(/TOOL:\s*(\w+)\s*\(([^)]*)\)/i);
+	        if (toolMatch) {
+	          functionsHtml = `
+	            <div class="metadata-item">
+	              <label>Function Name</label>
+	              <span>${escapeHtml(toolMatch[1])}</span>
+	            </div>
+	            <div class="metadata-item">
+	              <label>Arguments</label>
+	              <span>${escapeHtml(toolMatch[2] || 'none')}</span>
+	            </div>
+	          `;
+	        }
+	      }
       
       content.innerHTML = `
         <div class="metadata-grid">
@@ -1534,21 +1846,67 @@
             <label>Agreement</label>
             <span>${record.agreement === true ? '✓ Yes' : record.agreement === false ? '✗ No' : 'Pending'}</span>
           </div>
+          <div class="metadata-item">
+            <label>Failure Mode</label>
+            <span>${record.failureMode || 'N/A'}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Prompt Version</label>
+            <span>${record.promptVersion || 'N/A'}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Winner</label>
+            <span>${record.winner || 'N/A'}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Expected Winner</label>
+            <span>${record.expectedWinner || 'N/A'}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Reviewer</label>
+            <span>${record.reviewer || 'N/A'}</span>
+          </div>
+          <div class="metadata-item">
+            <label>Reference Answer</label>
+            <span>${record.referenceAnswer || 'N/A'}</span>
+          </div>
+        </div>
+        ${renderPanelResults(record)}
+      `;
+    }
+
+    function renderPanelResults(record) {
+      if (!Array.isArray(record.panelResults) || record.panelResults.length === 0) return '';
+      return `
+        <div class="editable-section">
+          <div class="editable-label">Judge Panel Results</div>
+          <div class="metadata-grid">
+            ${record.panelResults.map(result => `
+              <div class="metadata-item">
+                <label>${escapeHtml([result.provider, result.model].filter(Boolean).join('/') || 'Judge')}</label>
+                <span>${escapeHtml([
+                  result.winner ? `winner=${result.winner}` : '',
+                  result.pass === true ? 'pass' : result.pass === false ? 'fail' : 'unknown',
+                  result.reason || ''
+                ].filter(Boolean).join(' | '))}</span>
+              </div>
+            `).join('')}
+          </div>
         </div>
       `;
     }
     
-    function acceptRecord() {
-      const filtered = getFilteredRecords();
-      const record = filtered[currentIndex];
-      if (!record) return;
-      
-      record.status = 'accepted';
-      record.humanOutcome = 'good';
-      record.humanCritique = document.getElementById('humanCritique')?.value || '';
-      record.humanRevisedResponse = document.getElementById('revisedResponse')?.value || '';
-      record.agreement = record.modelOutcome === 'good';
-      record.reviewedAt = new Date().toISOString();
+	    function acceptRecord() {
+	      const filtered = getFilteredRecords();
+	      const record = filtered[currentIndex];
+	      if (!record) return;
+	      
+	      record.status = 'accepted';
+	      record.humanOutcome = 'good';
+	      captureReviewEdits(record);
+	      record.agreement = record.modelOutcome === 'good';
+	      record.reviewedAt = new Date().toISOString();
+	      upsertReviewerLabel(record);
       
       updateUI();
       if (currentIndex < filtered.length - 1) navigate(1);
@@ -1559,16 +1917,42 @@
       const record = filtered[currentIndex];
       if (!record) return;
       
-      record.status = 'rejected';
-      record.humanOutcome = 'bad';
-      record.humanCritique = document.getElementById('humanCritique')?.value || '';
-      record.humanRevisedResponse = document.getElementById('revisedResponse')?.value || '';
-      record.agreement = record.modelOutcome === 'bad';
-      record.reviewedAt = new Date().toISOString();
+	      record.status = 'rejected';
+	      record.humanOutcome = 'bad';
+	      captureReviewEdits(record);
+	      record.agreement = record.modelOutcome === 'bad';
+	      record.reviewedAt = new Date().toISOString();
+	      upsertReviewerLabel(record);
       
-      updateUI();
-      if (currentIndex < filtered.length - 1) navigate(1);
-    }
+	      updateUI();
+	      if (currentIndex < filtered.length - 1) navigate(1);
+	    }
+
+	    function captureReviewEdits(record) {
+	      record.humanCritique = document.getElementById('humanCritique')?.value || '';
+	      record.humanRevisedResponse = document.getElementById('revisedResponse')?.value || '';
+	      record.failureMode = document.getElementById('failureModeInput')?.value || '';
+	      record.feature = document.getElementById('featureInput')?.value || '';
+	      record.scenario = document.getElementById('scenarioInput')?.value || '';
+	      record.persona = document.getElementById('personaInput')?.value || '';
+	      record.reviewer = document.getElementById('reviewerInput')?.value || record.reviewer || '';
+	      record.referenceAnswer = document.getElementById('referenceAnswerInput')?.value || '';
+	    }
+
+	    function upsertReviewerLabel(record) {
+	      const reviewer = record.reviewer || 'default';
+	      const label = {
+	        reviewer,
+	        human_pass: record.humanOutcome === 'good',
+	        critique: record.humanCritique || '',
+	        reviewed_at: record.reviewedAt || new Date().toISOString(),
+	      };
+	      const labels = Array.isArray(record.reviewerLabels) ? record.reviewerLabels : [];
+	      const existingIndex = labels.findIndex(item => (item.reviewer || 'default') === reviewer);
+	      if (existingIndex >= 0) labels[existingIndex] = label;
+	      else labels.push(label);
+	      record.reviewerLabels = labels;
+	    }
     
     function resetRecord() {
       const filtered = getFilteredRecords();
@@ -1581,25 +1965,42 @@
       record.humanRevisedResponse = '';
       record.agreement = null;
       record.reviewedAt = null;
+      record.referenceAnswer = '';
       
       updateUI();
     }
     
     function downloadData() {
-      // Generate CSV in the template format
-      const headers = ['Iteration', 'Model response', 'Model critique', 'Model outcome', 'Human critique', 'Human outcome', 'Human revised response', 'Agreement'];
-      const rows = records.map((r, i) => [
-        r.iteration || i + 1,
-        escapeCSV(r.modelResponse),
-        escapeCSV(r.modelCritique),
-        r.modelOutcome || '',
-        escapeCSV(r.humanCritique),
-        r.humanOutcome || '',
-        escapeCSV(r.humanRevisedResponse),
-        r.agreement === true ? 'TRUE' : r.agreement === false ? 'FALSE' : ''
-      ]);
+      // Generate CSV in the repo gold-label schema.
+      const exportableRecords = records.filter(r =>
+        r.status !== 'pending'
+        && (r.humanOutcome === 'good' || r.humanOutcome === 'bad')
+        && String(r.humanCritique || '').trim()
+      );
+      if (exportableRecords.length === 0) {
+        alert('No reviewed records with a human outcome and critique are ready to export.');
+        return;
+      }
+      const headers = ['id', 'source_trace_id', 'suite', 'prompt', 'response', 'human_pass', 'critique', 'reference_answer', 'failure_mode', 'feature', 'scenario', 'persona', 'reviewer', 'reviewed_at', 'reviewer_labels'];
+		      const rows = exportableRecords.map((r, i) => [
+		        r.id || `label-${i + 1}`,
+	        r.sourceTraceId || '',
+	        r.testCase || r.source || '',
+	        r.prompt || '',
+	        r.humanRevisedResponse || r.modelResponse || '',
+	        r.humanOutcome === 'good' ? 'true' : r.humanOutcome === 'bad' ? 'false' : '',
+	        r.humanCritique || '',
+	        r.referenceAnswer || r.reference_answer || '',
+	        r.failureMode || '',
+	        r.feature || '',
+	        r.scenario || '',
+        r.persona || '',
+        r.reviewer || '',
+	        r.reviewedAt || '',
+	        JSON.stringify(r.reviewerLabels || [])
+	      ]);
       
-      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+	      const csv = [headers.join(','), ...rows.map(r => r.map(escapeCSV).join(','))].join('\n');
       
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
@@ -1610,13 +2011,20 @@
       URL.revokeObjectURL(url);
     }
     
-    function escapeCSV(str) {
-      if (!str) return '';
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    }
+	    function escapeCSV(str) {
+	      if (str === null || str === undefined) return '';
+	      str = String(str);
+	      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+	        return `"${str.replace(/"/g, '""')}"`;
+	      }
+	      return str;
+	    }
+
+	    function formatToolArgs(args) {
+	      if (args === null || args === undefined) return '';
+	      if (typeof args === 'string') return args;
+	      return JSON.stringify(args);
+	    }
     
     function escapeHtml(str) {
       if (!str) return '';

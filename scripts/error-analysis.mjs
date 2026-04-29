@@ -2,8 +2,10 @@
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { resolve, join } from 'path';
+import { loadLabelsFromDir } from '../labels/schema.mjs';
 
 const tracesDir = resolve(process.cwd(), 'traces');
+const labelsDir = resolve(process.cwd(), 'labels');
 
 function listTraceFiles() {
   if (!existsSync(tracesDir)) return [];
@@ -16,7 +18,15 @@ function listTraceFiles() {
 function loadTrace(traceId) {
   const file = traceId.endsWith('.json') ? traceId : `${traceId}.json`;
   const path = join(tracesDir, file);
-  return JSON.parse(readFileSync(path, 'utf8'));
+  try {
+    const trace = JSON.parse(readFileSync(path, 'utf8'));
+    return {
+      ...trace,
+      results: Array.isArray(trace.results) ? trace.results : [],
+    };
+  } catch (error) {
+    throw new Error(`Invalid trace JSON ${path}: ${error.message}`);
+  }
 }
 
 function categorize(result) {
@@ -39,9 +49,15 @@ function categorize(result) {
   return 'uncategorized_failure';
 }
 
+function isOperationalLabel(label) {
+  return label.reviewer !== 'calibration-author' && label.metadata?.purpose !== 'calibration';
+}
+
 function summarize(trace) {
-  const failures = trace.results.filter(r => r.pass === false || !r.success);
+  const results = Array.isArray(trace.results) ? trace.results : [];
+  const failures = results.filter(r => r.pass === false || !r.success);
   const categories = new Map();
+  const labels = loadLabelsFromDir(labelsDir).filter(isOperationalLabel);
 
   for (const result of failures) {
     const category = categorize(result);
@@ -56,12 +72,13 @@ function summarize(trace) {
   lines.push('');
   lines.push(`- Trace ID: ${trace.id}`);
   lines.push(`- Started: ${trace.startedAt}`);
-  lines.push(`- Total results: ${trace.results.length}`);
+  lines.push(`- Total results: ${results.length}`);
   lines.push(`- Failures: ${failures.length}`);
   lines.push('');
 
   if (ordered.length === 0) {
     lines.push('No failures found in this trace.');
+    appendLabelPivots(lines, labels);
     return lines.join('\n');
   }
 
@@ -105,13 +122,16 @@ function summarize(trace) {
 
   lines.push(recommendations[topCategory] || recommendations.uncategorized_failure);
   lines.push('');
+  appendLabelPivots(lines, labels);
 
   return lines.join('\n');
 }
 
 function toJson(trace) {
-  const failures = trace.results.filter(r => r.pass === false || !r.success);
+  const results = Array.isArray(trace.results) ? trace.results : [];
+  const failures = results.filter(r => r.pass === false || !r.success);
   const categories = new Map();
+  const labels = loadLabelsFromDir(labelsDir).filter(isOperationalLabel);
 
   for (const result of failures) {
     const category = categorize(result);
@@ -139,7 +159,7 @@ function toJson(trace) {
     traceId: trace.id,
     evalName: trace.evalName,
     startedAt: trace.startedAt,
-    totalResults: trace.results.length,
+    totalResults: results.length,
     failureCount: failures.length,
     topCategory,
     recommendedNextStep: topCategory ? recommendations[topCategory] : null,
@@ -154,7 +174,46 @@ function toJson(trace) {
         reason: (item.evalReason || item.response?.error || 'No reason').replace(/\s+/g, ' ').trim(),
       })),
     })),
+    labelPivots: buildLabelPivots(labels),
   };
+}
+
+function buildLabelPivots(labels) {
+  const failed = labels.filter(label => label.human_pass === false);
+  return {
+    failure_mode: countBy(failed, 'failure_mode'),
+    feature: countBy(failed, 'feature'),
+    scenario: countBy(failed, 'scenario'),
+    persona: countBy(failed, 'persona'),
+    suite: countBy(failed, 'suite'),
+  };
+}
+
+function countBy(items, field) {
+  const counts = new Map();
+  for (const item of items) {
+    const key = item[field] || 'unknown';
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return Object.fromEntries([...counts.entries()].sort((a, b) => b[1] - a[1]));
+}
+
+function appendLabelPivots(lines, labels) {
+  if (labels.length === 0) return;
+  const pivots = buildLabelPivots(labels);
+  lines.push('## Human-Labeled Failure Pivots');
+  lines.push('');
+
+  for (const [field, values] of Object.entries(pivots)) {
+    const entries = Object.entries(values);
+    if (entries.length === 0) continue;
+    lines.push(`### ${field}`);
+    lines.push('');
+    for (const [value, count] of entries.slice(0, 10)) {
+      lines.push(`- ${value}: ${count}`);
+    }
+    lines.push('');
+  }
 }
 
 const args = process.argv.slice(2);

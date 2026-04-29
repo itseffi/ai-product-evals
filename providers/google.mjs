@@ -68,10 +68,17 @@ export class GoogleProvider extends BaseProvider {
     if (systemInstruction) {
       requestBody.systemInstruction = systemInstruction;
     }
+    if (options.tools) {
+      requestBody.tools = [{
+        functionDeclarations: options.tools.map(tool => tool.function || tool),
+      }];
+    }
 
     const url = `${this.baseUrl}/models/${model}:generateContent?key=${this.apiKey}`;
     
     const response = await this.fetchWithTimeout(url, {
+      timeoutMs: options.timeoutMs,
+      timeout: options.timeout,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
@@ -89,6 +96,12 @@ export class GoogleProvider extends BaseProvider {
     const text = data.candidates?.[0]?.content?.parts
       ?.map(p => p.text)
       .join('') || '';
+    const toolCalls = data.candidates?.[0]?.content?.parts
+      ?.filter(p => p.functionCall)
+      .map(p => ({
+        name: p.functionCall.name,
+        args: p.functionCall.args || {},
+      })) || [];
 
     const usage = data.usageMetadata || {};
     const cost = this.calculateCost(usage, model);
@@ -104,6 +117,7 @@ export class GoogleProvider extends BaseProvider {
       model,
       provider: this.name,
       cost,
+      toolCalls,
     };
   }
 
@@ -145,6 +159,8 @@ export class GoogleProvider extends BaseProvider {
     const url = `${this.baseUrl}/models/${model}:streamGenerateContent?key=${this.apiKey}&alt=sse`;
     
     const response = await this.fetchWithTimeout(url, {
+      timeoutMs: options.timeoutMs,
+      timeout: options.timeout,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),

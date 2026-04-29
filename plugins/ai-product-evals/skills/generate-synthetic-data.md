@@ -20,6 +20,8 @@ description: >
 
 Inspect the current eval suite and recent traces first. Determine what dimensions are under-covered. Use `evals/`, `traces/`, and `evaluators/index.mjs` to understand what kinds of examples the repo can score well.
 
+Synthetic data should feed the label workflow: generate inputs, run them through the actual system, review traces, store human labels, then promote durable examples into eval suites.
+
 ## Core Instructions
 
 ### Start From Dimensions, Not Random Prompts
@@ -70,6 +72,8 @@ Keep only synthetic data that expands meaningful coverage.
 - `run-eval.mjs`
 - `evaluators/index.mjs`
 - `traces/`
+- `labels/`
+- `docs/schemas/labels.md`
 
 ## Anti-Patterns
 

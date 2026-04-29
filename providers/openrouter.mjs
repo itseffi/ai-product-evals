@@ -5,6 +5,7 @@
  */
 
 import { BaseProvider } from './base.mjs';
+import { getCachedInputTokens, selectPricingRate } from '../costs.mjs';
 
 // Pricing per 1M tokens (input/output).
 // OpenAI-family entries are aligned to OpenAI's standard-tier pricing page.
@@ -13,10 +14,27 @@ import { BaseProvider } from './base.mjs';
 // - https://developers.openai.com/api/docs/pricing
 // - https://openrouter.ai/docs/api-reference/models/get-models
 const MODEL_PRICING = {
-  'openai/gpt-5.4': { input: 2.5, output: 15 },
-  'openai/gpt-5.4-mini': { input: 0.75, output: 4.5 },
-  'openai/gpt-5.4-nano': { input: 0.2, output: 1.25 },
-  'openai/gpt-5.4-pro': { input: 30, output: 180 },
+  'openai/gpt-5.5': {
+    input: 5,
+    cachedInput: 0.5,
+    output: 30,
+    longContext: { input: 10, cachedInput: 1, output: 45 },
+  },
+  'openai/gpt-5.5-pro': {
+    input: 30,
+    cachedInput: null,
+    output: 180,
+    longContext: { input: 60, cachedInput: null, output: 270 },
+  },
+  'openai/gpt-5.4': {
+    input: 2.5,
+    cachedInput: 0.25,
+    output: 15,
+    longContext: { input: 5, cachedInput: 0.5, output: 22.5 },
+  },
+  'openai/gpt-5.4-mini': { input: 0.75, cachedInput: 0.075, output: 4.5 },
+  'openai/gpt-5.4-nano': { input: 0.2, cachedInput: 0.02, output: 1.25 },
+  'openai/gpt-5.4-pro': { input: 30, cachedInput: null, output: 180, longContext: { input: 60, cachedInput: null, output: 270 } },
   'openai/gpt-5.2': { input: 1.75, output: 14 },
   'openai/gpt-5.2-pro': { input: 21, output: 168 },
   'openai/gpt-5.1': { input: 1.25, output: 10 },
@@ -67,6 +85,8 @@ export class OpenRouterProvider extends BaseProvider {
     const startTime = Date.now();
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
+      timeoutMs: options.timeoutMs,
+      timeout: options.timeout,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -80,6 +100,8 @@ export class OpenRouterProvider extends BaseProvider {
         temperature: options.temperature ?? 0.7,
         max_tokens: options.max_tokens || options.maxTokens || 2048,
         stream: false,
+        ...(options.tools ? { tools: options.tools } : {}),
+        ...(options.tool_choice ? { tool_choice: options.tool_choice } : {}),
       }),
     });
 
@@ -94,8 +116,10 @@ export class OpenRouterProvider extends BaseProvider {
     const usage = data.usage || {};
     const cost = this.calculateCost(usage, model);
 
+    const message = data.choices?.[0]?.message || {};
+
     return {
-      text: data.choices?.[0]?.message?.content || '',
+      text: message.content || '',
       usage: {
         prompt_tokens: usage.prompt_tokens || 0,
         completion_tokens: usage.completion_tokens || 0,
@@ -105,6 +129,7 @@ export class OpenRouterProvider extends BaseProvider {
       model,
       provider: this.name,
       cost,
+      toolCalls: message.tool_calls || [],
     };
   }
 
@@ -135,8 +160,15 @@ export class OpenRouterProvider extends BaseProvider {
     const pricing = MODEL_PRICING[model];
     if (!pricing || !usage) return null;
 
-    const inputCost = (usage.prompt_tokens || 0) * (pricing.input / 1_000_000);
-    const outputCost = (usage.completion_tokens || 0) * (pricing.output / 1_000_000);
-    return inputCost + outputCost;
+    const rate = selectPricingRate(pricing, usage);
+    const cachedInputTokens = getCachedInputTokens(usage);
+    const promptTokens = Math.max(0, (usage.prompt_tokens || 0) - cachedInputTokens);
+    const inputCost = promptTokens * (rate.input / 1_000_000);
+    const cachedInputRate = rate.cachedInput === null || rate.cachedInput === undefined
+      ? rate.input
+      : rate.cachedInput;
+    const cachedInputCost = cachedInputTokens * (cachedInputRate / 1_000_000);
+    const outputCost = (usage.completion_tokens || 0) * (rate.output / 1_000_000);
+    return inputCost + cachedInputCost + outputCost;
   }
 }

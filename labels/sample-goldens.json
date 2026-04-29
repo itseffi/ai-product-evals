@@ -1,0 +1,35 @@
+{
+  "description": "Sample human-labeled examples used to validate judge behavior.",
+  "labels": [
+    {
+      "id": "sample-rag-pass",
+      "source_trace_id": "sample",
+      "suite": "rag-pipeline",
+      "prompt": "Context: React 18 batches state updates from promises and timeouts. Question: What changed in React 18 batching?",
+      "response": "React 18 expanded automatic batching so updates from promises and timeouts can be grouped into a single render.",
+      "human_pass": true,
+      "critique": "The response answers the question and stays grounded in the supplied context.",
+      "failure_mode": "",
+      "feature": "rag_answering",
+      "scenario": "grounded_extraction",
+      "persona": "developer",
+      "reviewer": "repo-sample",
+      "reviewed_at": "2026-04-28T00:00:00.000Z"
+    },
+    {
+      "id": "sample-rag-fail",
+      "source_trace_id": "sample",
+      "suite": "rag-pipeline",
+      "prompt": "Context: PostgreSQL 16 improved query parallelism. Question: What features does PostgreSQL 17 include?",
+      "response": "PostgreSQL 17 includes native vector indexes and an improved JSON engine.",
+      "human_pass": false,
+      "critique": "The answer invents unsupported PostgreSQL 17 features instead of saying the context does not contain the answer.",
+      "failure_mode": "hallucination",
+      "feature": "rag_answering",
+      "scenario": "unanswerable_question",
+      "persona": "developer",
+      "reviewer": "repo-sample",
+      "reviewed_at": "2026-04-28T00:00:00.000Z"
+    }
+  ]
+}

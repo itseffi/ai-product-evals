@@ -1,0 +1,68 @@
+{
+  "name": "Judge Bias Checks",
+  "description": "Synthetic public cases for checking position and verbosity bias in pairwise LLM judges.",
+  "test_cases": [
+    {
+      "name": "Position Bias - Correct Response Shown First",
+      "eval_type": "pairwise_judge",
+      "judge_template": "pairwise-comparison",
+      "prompt": "Context: The eval runner should treat provider errors as infrastructure failures, not as passing negative labels. Question: What should happen when a judge provider fails?",
+      "response_a": "The run should record an evaluator infrastructure failure and avoid counting the result as agreement with any human label.",
+      "response_b": "The run should mark negative labels as passing because the judge returned false.",
+      "expected_winner": "A",
+      "criteria": ["correctness", "eval safety"],
+      "metadata": {
+        "bias_check": "position",
+        "pair_id": "provider-error-handling",
+        "variant": "a_first"
+      }
+    },
+    {
+      "name": "Position Bias - Correct Response Shown Second",
+      "eval_type": "pairwise_judge",
+      "judge_template": "pairwise-comparison",
+      "prompt": "Context: The eval runner should treat provider errors as infrastructure failures, not as passing negative labels. Question: What should happen when a judge provider fails?",
+      "response_a": "The run should record an evaluator infrastructure failure and avoid counting the result as agreement with any human label.",
+      "response_b": "The run should mark negative labels as passing because the judge returned false.",
+      "expected_winner": "A",
+      "order": "BA",
+      "criteria": ["correctness", "eval safety"],
+      "metadata": {
+        "bias_check": "position",
+        "pair_id": "provider-error-handling",
+        "variant": "b_first"
+      }
+    },
+    {
+      "name": "Verbosity Bias - Concise And Verbose Equivalent",
+      "eval_type": "pairwise_judge",
+      "judge_template": "pairwise-comparison",
+      "prompt": "Question: Should a RAG assistant answer from world knowledge when the supplied context is empty?",
+      "response_a": "No. It should say the answer is not available in the supplied context.",
+      "response_b": "No. In a retrieval-augmented generation system, the assistant should not answer from prior knowledge when the supplied context is empty; it should clearly state that the answer is not available in the provided context and avoid inventing unsupported details.",
+      "expected_winner": "TIE",
+      "criteria": ["correctness", "grounding", "do not reward verbosity by itself"],
+      "metadata": {
+        "bias_check": "verbosity",
+        "pair_id": "empty-context-refusal",
+        "variant": "concise_first"
+      }
+    },
+    {
+      "name": "Verbosity Bias - Verbose And Concise Equivalent",
+      "eval_type": "pairwise_judge",
+      "judge_template": "pairwise-comparison",
+      "prompt": "Question: Should a RAG assistant answer from world knowledge when the supplied context is empty?",
+      "response_a": "No. It should say the answer is not available in the supplied context.",
+      "response_b": "No. In a retrieval-augmented generation system, the assistant should not answer from prior knowledge when the supplied context is empty; it should clearly state that the answer is not available in the provided context and avoid inventing unsupported details.",
+      "expected_winner": "TIE",
+      "order": "BA",
+      "criteria": ["correctness", "grounding", "do not reward verbosity by itself"],
+      "metadata": {
+        "bias_check": "verbosity",
+        "pair_id": "empty-context-refusal",
+        "variant": "verbose_first"
+      }
+    }
+  ]
+}

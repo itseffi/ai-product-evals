@@ -20,6 +20,8 @@ export class OllamaProvider extends BaseProvider {
     const startTime = Date.now();
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/api/chat`, {
+      timeoutMs: options.timeoutMs,
+      timeout: options.timeout,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -61,6 +63,8 @@ export class OllamaProvider extends BaseProvider {
     const startTime = Date.now();
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/api/chat`, {
+      timeoutMs: options.timeoutMs,
+      timeout: options.timeout,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

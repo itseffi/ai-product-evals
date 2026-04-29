@@ -1,3 +1,5 @@
+import { parseEnvInteger } from '../env-utils.mjs';
+
 /**
  * Base Provider Class
  * Abstract interface that all LLM providers must implement
@@ -7,7 +9,7 @@ export class BaseProvider {
   constructor(config = {}) {
     this.config = config;
     this.name = 'base';
-    this.timeout = config.timeout || parseInt(process.env.EVAL_TIMEOUT_MS || '60000', 10);
+    this.timeout = config.timeout || parseEnvInteger(process.env.EVAL_TIMEOUT_MS, 60000, { min: 1000, max: 30 * 60 * 1000 });
   }
 
   /**
@@ -68,11 +70,13 @@ export class BaseProvider {
    */
   async fetchWithTimeout(url, options = {}) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    const timeout = options.timeoutMs || options.timeout || this.timeout;
+    const { timeoutMs, timeout: _timeout, ...fetchOptions } = options;
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
       const response = await fetch(url, {
-        ...options,
+        ...fetchOptions,
         signal: controller.signal,
       });
       return response;

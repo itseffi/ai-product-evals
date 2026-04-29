@@ -1,44 +1,155 @@
 {
   "name": "Agent Tool Selection",
-  "description": "Evaluate LLM ability to select and use appropriate tools",
+  "description": "Evaluate whether an AI product agent selects the right operational tool for eval, RAG, repo, and product workflows.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "search_docs",
+        "description": "Search project documentation for implementation or usage guidance.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" }
+          },
+          "required": ["query"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "read_file",
+        "description": "Read a repository file by path.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string" }
+          },
+          "required": ["path"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "run_tests",
+        "description": "Run a repository validation command.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "command": { "type": "string" }
+          },
+          "required": ["command"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "create_ticket",
+        "description": "Create a product workflow ticket for a confirmed issue.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "body": { "type": "string" }
+          },
+          "required": ["title", "body"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "query_traces",
+        "description": "Query saved eval traces by suite, status, failure mode, model, or provider.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "filter": { "type": "string" }
+          },
+          "required": ["filter"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "retrieve_context",
+        "description": "Retrieve candidate context passages for a RAG answer.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" }
+          },
+          "required": ["query"]
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto",
   "test_cases": [
     {
-      "name": "Weather Query",
-      "system_prompt": "You have access to these tools:\n- search(query): Search the web\n- get_weather(city): Get current weather\n- calculate(expression): Evaluate math\n- send_email(to, subject, body): Send email\n\nRespond with: TOOL: tool_name(args)\nIf no tool needed: TOOL: none\nDo not explain, just output the tool call.",
-      "prompt": "What's the weather in San Francisco?",
-      "expected_tool": "get_weather",
-      "expected_args": ["San Francisco"],
+      "name": "Documentation Lookup",
+      "system_prompt": "You are an AI product evaluation agent. Use the available tool when the user asks for repository documentation, traces, tests, files, tickets, or retrieval context. If no tool is needed, answer directly without calling a tool.",
+      "prompt": "Find the documentation that explains how to validate an LLM judge against human labels.",
+      "expected_tool": "search_docs",
+      "expected_args": ["validate", "LLM judge", "human labels"],
+      "require_native_tool_call": true,
       "max_tokens": 256
     },
     {
-      "name": "Math Calculation",
-      "system_prompt": "You have access to these tools:\n- search(query): Search the web\n- get_weather(city): Get current weather\n- calculate(expression): Evaluate math\n- send_email(to, subject, body): Send email\n\nRespond with: TOOL: tool_name(args)\nIf no tool needed: TOOL: none\nDo not explain, just output the tool call.",
-      "prompt": "What is 145 * 37?",
-      "expected_tool": "calculate",
-      "expected_args": ["145", "37"],
+      "name": "Repo File Inspection",
+      "system_prompt": "You are an AI product evaluation agent. Use the available tool when the user asks for repository documentation, traces, tests, files, tickets, or retrieval context. If no tool is needed, answer directly without calling a tool.",
+      "prompt": "Open the evaluator implementation so we can inspect how tool calls are scored.",
+      "expected_tool": "read_file",
+      "expected_args": ["evaluators/index.mjs"],
+      "require_native_tool_call": true,
       "max_tokens": 256
     },
     {
-      "name": "Web Search",
-      "system_prompt": "You have access to these tools:\n- search(query): Search the web\n- get_weather(city): Get current weather\n- calculate(expression): Evaluate math\n- send_email(to, subject, body): Send email\n\nRespond with: TOOL: tool_name(args)\nIf no tool needed: TOOL: none\nDo not explain, just output the tool call.",
-      "prompt": "Find the latest news about AI regulations",
-      "expected_tool": "search",
-      "expected_args": ["AI regulations"],
+      "name": "Validation Command",
+      "system_prompt": "You are an AI product evaluation agent. Use the available tool when the user asks for repository documentation, traces, tests, files, tickets, or retrieval context. If no tool is needed, answer directly without calling a tool.",
+      "prompt": "Run the JSON eval threshold check for CI before merging.",
+      "expected_tool": "run_tests",
+      "expected_args": ["check-eval-threshold"],
+      "require_native_tool_call": true,
       "max_tokens": 256
     },
     {
-      "name": "No Tool Needed",
-      "system_prompt": "You have access to these tools:\n- search(query): Search the web\n- get_weather(city): Get current weather\n- calculate(expression): Evaluate math\n\nRespond with: TOOL: tool_name(args)\nIf no tool needed: TOOL: none\nDo not explain, just output the tool call.",
-      "prompt": "What is the capital of France?",
+      "name": "Trace Debug Query",
+      "system_prompt": "You are an AI product evaluation agent. Use the available tool when the user asks for repository documentation, traces, tests, files, tickets, or retrieval context. If no tool is needed, answer directly without calling a tool.",
+      "prompt": "Show me failed RAG faithfulness traces from the last run.",
+      "expected_tool": "query_traces",
+      "expected_args": ["RAG", "faithfulness", "failed"],
+      "require_native_tool_call": true,
+      "max_tokens": 256
+    },
+    {
+      "name": "RAG Retrieval",
+      "system_prompt": "You are an AI product evaluation agent. Use the available tool when the user asks for repository documentation, traces, tests, files, tickets, or retrieval context. If no tool is needed, answer directly without calling a tool.",
+      "prompt": "Retrieve context for answering whether gold labels should include reviewer and reviewed_at fields.",
+      "expected_tool": "retrieve_context",
+      "expected_args": ["gold labels", "reviewer", "reviewed_at"],
+      "require_native_tool_call": true,
+      "max_tokens": 256
+    },
+    {
+      "name": "Product Ticket Creation",
+      "system_prompt": "You are an AI product evaluation agent. Use the available tool when the user asks for repository documentation, traces, tests, files, tickets, or retrieval context. If no tool is needed, answer directly without calling a tool.",
+      "prompt": "Create a ticket for the bug where judge provider failures are counted as passing negative labels.",
+      "expected_tool": "create_ticket",
+      "expected_args": ["judge provider failures", "negative labels"],
+      "require_native_tool_call": true,
+      "max_tokens": 256
+    },
+    {
+      "name": "Technical No Tool Needed",
+      "system_prompt": "You are an AI product evaluation agent. Use the available tool when the user asks for repository documentation, traces, tests, files, tickets, or retrieval context. If no tool is needed, answer directly without calling a tool.",
+      "prompt": "In one sentence, explain why a deterministic exact-match evaluator does not need an LLM judge.",
       "expected_tool": "none",
-      "max_tokens": 256
-    },
-    {
-      "name": "Email Composition",
-      "system_prompt": "You have access to these tools:\n- search(query): Search the web\n- get_weather(city): Get current weather\n- send_email(to, subject, body): Send email\n\nRespond with: TOOL: tool_name(args)\nDo not explain, just output the tool call.",
-      "prompt": "Send an email to john@example.com with subject 'Meeting' saying we need to reschedule",
-      "expected_tool": "send_email",
-      "expected_args": ["john@example.com", "Meeting"],
+      "require_native_tool_call": true,
       "max_tokens": 256
     }
   ]

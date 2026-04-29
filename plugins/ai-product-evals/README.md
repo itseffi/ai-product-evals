@@ -6,5 +6,6 @@ Included:
 
 - agent-facing skills from `skills/`
 - helper scripts references from the main repo
+- calibrated judge workflow guidance using `labels/`, `judges/`, and validation scripts
 
 The source of truth for the skill content remains the main repo files.

@@ -48,7 +48,7 @@ Determine which layer fails first:
 
 ### Use `--skip-judge` As A Diagnostic Tool
 
-`--skip-judge` is useful for smoke tests because it removes judge-model dependence while keeping deterministic checks active. If deterministic checks pass but full runs fail, the likely problem is judge configuration or judge prompt design rather than the main eval runner.
+`--skip-judge` is useful for smoke tests because it removes judge-model dependence, keeps deterministic checks active, and marks judge-backed checks as skipped. If deterministic checks pass but full runs fail, the likely problem is judge configuration or judge prompt design rather than the main eval runner.
 
 ### Inspect Traces Before Editing
 

@@ -3,26 +3,26 @@
   "description": "Simple test to verify the eval runner works with scoring",
   "test_cases": [
     {
-      "name": "Math - Exact Answer",
+      "name": "Exact Technical Answer",
       "system_prompt": "Answer directly and concisely. Do not explain your reasoning.",
-      "prompt": "What is 2+2? Answer with just the number.",
-      "expected": "4",
+      "prompt": "What exact JSON value should represent a judge provider failure instead of false agreement?",
+      "expected": "null",
       "eval_type": "contains",
       "max_tokens": 256
     },
     {
       "name": "Tool Selection",
-      "system_prompt": "You have these tools:\n- get_weather(city): Get weather for a city\n- search(query): Search the web\n- calculate(expr): Do math\n\nRespond with: TOOL: tool_name(args)\nDo not explain, just output the tool call.",
-      "prompt": "What's the weather in Tokyo?",
-      "expected_tool": "get_weather",
-      "expected_args": ["Tokyo"],
+      "system_prompt": "You have these tools:\n- read_file(path): Read a repository file\n- search_docs(query): Search project documentation\n- run_tests(command): Run a validation command\n\nRespond with: TOOL: tool_name(args)\nDo not explain, just output the tool call.",
+      "prompt": "Open the evaluator implementation to inspect tool-call scoring.",
+      "expected_tool": "read_file",
+      "expected_args": ["evaluators/index.mjs"],
       "max_tokens": 256
     },
     {
-      "name": "Contains Check",
+      "name": "Technical Contains Check",
       "system_prompt": "Answer directly and concisely.",
-      "prompt": "Name 3 programming languages.",
-      "expected_contains": ["Python", "JavaScript"],
+      "prompt": "Name two confusion-matrix error types for evaluator validation.",
+      "expected_contains": ["false positive", "false negative"],
       "max_tokens": 256
     }
   ]

@@ -6,10 +6,16 @@ import { resolve, join } from 'path';
 const cwd = process.cwd();
 const evalsDir = resolve(cwd, 'evals');
 const skillsDir = resolve(cwd, 'skills');
+const labelsDir = resolve(cwd, 'labels');
+const judgesDir = resolve(cwd, 'judges');
 const workflowPath = resolve(cwd, '.github/workflows/eval.yml');
 
 function readJson(path) {
-  return JSON.parse(readFileSync(path, 'utf8'));
+  try {
+    return { data: JSON.parse(readFileSync(path, 'utf8')), error: null };
+  } catch (error) {
+    return { data: null, error: error.message };
+  }
 }
 
 function getEvalFiles() {
@@ -36,7 +42,11 @@ function audit() {
   let pinnedModels = 0;
 
   for (const file of evalFiles) {
-    const data = readJson(file);
+    const { data, error } = readJson(file);
+    if (error) {
+      findings.push({ severity: 'high', area: 'eval_parse', issue: `Invalid JSON in ${file}: ${error}` });
+      continue;
+    }
     const cases = data.test_cases || [];
     totalCases += cases.length;
 
@@ -66,6 +76,12 @@ function audit() {
 
   if (llmJudgeCases > 0) {
     findings.push({ severity: 'info', area: 'judge_eval', issue: `${llmJudgeCases} cases use judge-like scoring. Validate evaluator quality periodically.` });
+    if (!existsSync(labelsDir)) {
+      findings.push({ severity: 'medium', area: 'judge_eval', issue: 'Judge-like scoring exists but no `labels/` directory was found for human validation data.' });
+    }
+    if (!existsSync(judgesDir)) {
+      findings.push({ severity: 'medium', area: 'judge_eval', issue: 'Judge-like scoring exists but no `judges/` directory was found for suite-specific judge templates.' });
+    }
   }
 
   if (toolCases === 0) {

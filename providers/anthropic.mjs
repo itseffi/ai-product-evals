@@ -68,8 +68,21 @@ export class AnthropicProvider extends BaseProvider {
     if (systemMessage) {
       requestBody.system = systemMessage;
     }
+    if (options.tools) {
+      requestBody.tools = options.tools.map(tool => {
+        const fn = tool.function || tool;
+        return {
+          name: fn.name,
+          description: fn.description || '',
+          input_schema: fn.parameters || fn.input_schema || { type: 'object', properties: {} },
+        };
+      });
+    }
+    if (options.tool_choice) requestBody.tool_choice = options.tool_choice;
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/messages`, {
+      timeoutMs: options.timeoutMs,
+      timeout: options.timeout,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -95,6 +108,13 @@ export class AnthropicProvider extends BaseProvider {
       ?.filter(c => c.type === 'text')
       .map(c => c.text)
       .join('') || '';
+    const toolCalls = data.content
+      ?.filter(c => c.type === 'tool_use')
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        args: c.input || {},
+      })) || [];
 
     return {
       text,
@@ -107,6 +127,7 @@ export class AnthropicProvider extends BaseProvider {
       model,
       provider: this.name,
       cost,
+      toolCalls,
     };
   }
 
@@ -142,6 +163,8 @@ export class AnthropicProvider extends BaseProvider {
     }
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/messages`, {
+      timeoutMs: options.timeoutMs,
+      timeout: options.timeout,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
