@@ -16,6 +16,7 @@ import { resolve, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
 import { getProvider, getDefaultProvider, getAvailableProviders } from './providers/index.mjs';
 import { evaluate } from './evaluators/index.mjs';
+import { calibrationSummary, collectCalibrationPairs } from './evaluators/metrics.mjs';
 import { createTrace, addTraceResult, saveTrace, listTraces, getRecentTraces, compareTraces, formatTraceSummary } from './tracer.mjs';
 import { getCacheKey, getCachedResponse, setCachedResponse } from './cache.mjs';
 import { withRateLimit } from './rate-limiter.mjs';
@@ -1286,6 +1287,7 @@ async function runEval(evalConfig, cliConfig) {
     callsUsed: callBudget.used,
     maxCalls: callBudget.maxCalls,
     reliability: calculateReliabilityMetrics(results),
+    calibration: calibrationSummary(collectCalibrationPairs(results)),
   };
   const tracePath = saveTrace(trace, summary);
   console.log(`\n📊 Trace saved: ${tracePath}`);
