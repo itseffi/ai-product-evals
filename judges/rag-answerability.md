@@ -10,9 +10,10 @@ Pass only if the question can be answered satisfactorily from the retrieved cont
 
 Fail when the context is insufficient and the correct system behavior should be to say the answer is not available.
 
-Return exactly:
+Reason first, then give the verdict. Return exactly, in this order:
+REASON: [one sentence]
 SCORE: [0-100]
 PASS: [YES or NO]
-REASON: [one sentence]
 
+PASS is the primary verdict; SCORE is advisory.
 Do not include markdown, analysis, preamble, or any other fields.

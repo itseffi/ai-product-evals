@@ -1009,7 +1009,8 @@ async function runSinglePairwiseJudge(judgeProvider, judgeModel, prompt, options
 
   const judgeResponse = result.text || '';
   const winnerMatch = judgeResponse.match(/WINNER:\s*(A|B|TIE)/i);
-  const reasonMatch = judgeResponse.match(/REASON:\s*(.+)/is);
+  // Non-greedy + stop at newline so a reason-first response does not swallow the WINNER line.
+  const reasonMatch = judgeResponse.match(/REASON:\s*(.+?)(?:\n|$)/is);
 
   if (!winnerMatch) {
     return {
@@ -1139,9 +1140,9 @@ ${Array.isArray(testCase.criteria) ? testCase.criteria.join(', ') : testCase.cri
 ${testCase.reference_answer || testCase.reference ? `Reference answer:
 ${testCase.reference_answer || testCase.reference}` : ''}
 
-Return exactly:
-WINNER: [A, B, or TIE]
-REASON: [one sentence]`;
+Reason first, then give the verdict. Return exactly, in this order:
+REASON: [one sentence]
+WINNER: [A, B, or TIE]`;
 }
 
 function isWeakJudgeReason(reason) {
@@ -1186,13 +1187,12 @@ ${response}
 
 Instructions:
 1. Evaluate the response against each criterion
-2. Give a score from 0-100
-3. Provide brief reasoning
+2. Reason first, then give the verdict
 
-Respond in this exact format:
+Respond in this exact format, in this order:
+REASON: [one sentence explanation]
 SCORE: [number 0-100]
-PASS: [YES or NO]
-REASON: [one sentence explanation]`;
+PASS: [YES or NO]`;
 }
 
 function loadJudgeTemplate(name) {
