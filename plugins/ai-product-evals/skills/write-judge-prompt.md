@@ -36,15 +36,17 @@ Avoid vague umbrella prompts like “judge overall quality.”
 
 ### Require Structured Output
 
-Judge outputs should be easy to parse, for example:
+Judge outputs should be easy to parse, and should put the reasoning *before* the
+verdict so the judge reasons before it commits to a label:
 
 ```text
+REASON: [one sentence]
 SCORE: [0-100]
 PASS: [YES or NO]
-REASON: [one sentence]
 ```
 
-The parser should not rely on free-form prose.
+`PASS` is the primary verdict; `SCORE` is advisory. The parser should not rely on
+free-form prose, and the order above matches the templates in `judges/`.
 
 ### Use Behavior-Based Criteria
 
