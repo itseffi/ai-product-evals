@@ -7,9 +7,10 @@ Fail when:
 - the answer provides broad background instead of the requested answer
 - the answer ignores key constraints in the question
 
-Return exactly:
+Reason first, then give the verdict. Return exactly, in this order:
+REASON: [one sentence]
 SCORE: [0-100]
 PASS: [YES or NO]
-REASON: [one sentence]
 
+PASS is the primary verdict; SCORE is advisory.
 Do not include markdown, analysis, preamble, or any other fields.

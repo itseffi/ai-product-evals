@@ -14,9 +14,10 @@ Fail when:
 - arguments are missing, fabricated, or mapped to the wrong fields
 - the model calls a tool when it should ask a clarifying question or refuse
 
-Return exactly:
+Reason first, then give the verdict. Return exactly, in this order:
+REASON: [one sentence]
 SCORE: [0-100]
 PASS: [YES or NO]
-REASON: [one sentence]
 
+PASS is the primary verdict; SCORE is advisory.
 Do not include markdown, analysis, preamble, or any other fields.
