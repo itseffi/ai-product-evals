@@ -21,17 +21,34 @@ export function ragRetrievalEval(testCase) {
   const recallAtK = relevantInTopK.length / expectedSet.size;
   const precisionAtK = relevantInTopK.length / Math.max(topK.length, 1);
   const mrr = firstRelevantIndex >= 0 ? 1 / (firstRelevantIndex + 1) : 0;
-  const score = (recallAtK + precisionAtK + mrr) / 3;
+  const ndcg = ndcgAtK(topK, expectedSet, k);
+
+  const metrics = { recallAtK, precisionAtK, mrr, ndcg, k };
+  // Gate on one named metric instead of averaging unrelated quantities; the
+  // score reflects whatever metric gates so pass/score stay consistent.
+  const metricKey = { recall: 'recallAtK', precision: 'precisionAtK', mrr: 'mrr', ndcg: 'ndcg' }[testCase.retrieval_pass_metric] || 'recallAtK';
   const passThreshold = testCase.threshold ?? 1;
-  const pass = recallAtK >= passThreshold;
+  const score = metrics[metricKey];
+  const pass = score >= passThreshold;
 
   return {
     pass,
     score,
-    reason: `Recall@${k}: ${format(recallAtK)}, Precision@${k}: ${format(precisionAtK)}, MRR: ${format(mrr)}`,
+    reason: `Recall@${k}: ${format(recallAtK)}, Precision@${k}: ${format(precisionAtK)}, MRR: ${format(mrr)}, nDCG@${k}: ${format(ndcg)} (gate: ${metricKey} >= ${passThreshold})`,
     evalType: 'rag_retrieval',
-    metrics: { recallAtK, precisionAtK, mrr, k },
+    metrics,
   };
+}
+
+function ndcgAtK(topK, expectedSet, k) {
+  let dcg = 0;
+  for (let i = 0; i < topK.length; i++) {
+    if (expectedSet.has(String(topK[i]))) dcg += 1 / Math.log2(i + 2);
+  }
+  let idcg = 0;
+  const idealHits = Math.min(k, expectedSet.size);
+  for (let i = 0; i < idealHits; i++) idcg += 1 / Math.log2(i + 2);
+  return idcg > 0 ? dcg / idcg : 0;
 }
 
 export function getRagContext(testCase) {
