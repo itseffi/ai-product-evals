@@ -20,7 +20,7 @@ For an AI coding agent:
 
 1. Run `npm run skill:eval-audit`
 2. If traces exist, run `npm run skill:error-analysis`
-3. Follow the routing guide in [AGENT_EVALS.md](AGENT_EVALS.md)
+3. Follow the routing guide in [AGENTS.md](AGENTS.md)
 4. Use the matching skill from `skills/`
 
 For a human:
@@ -72,7 +72,7 @@ Current skills:
 - [skills/propose-judge-patch.md](skills/propose-judge-patch.md)
 - [skills/build-review-interface.md](skills/build-review-interface.md)
 
-Use [AGENT_EVALS.md](AGENT_EVALS.md) to decide which skill to use first.
+Use [AGENTS.md](AGENTS.md) to decide which skill to use first.
 
 ## Agent Integrations
 
@@ -604,7 +604,7 @@ Cost is reported as approximate metadata only.
 
 ```text
 ai-product-evals/
-├── AGENT_EVALS.md        # Skill routing guide for agents
+├── AGENTS.md             # Agent instructions + skill routing guide
 ├── skills/               # Agent-facing eval skills and source-of-truth content
 ├── .claude/skills/       # Claude-compatible skill exposure
 ├── plugins/ai-product-evals/  # Codex plugin package
