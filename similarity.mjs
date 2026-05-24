@@ -122,12 +122,25 @@ export async function semanticSimilarity(text1, text2) {
   return cosineSimilarity(embeddings[0], embeddings[1]);
 }
 
+// Cosine similarity is a weak correctness proxy (negation/antonyms score high),
+// so the result is flagged weakSignal to keep callers from trusting it as a verdict.
+export function buildSimilarityResult(similarity, threshold) {
+  return {
+    pass: similarity >= threshold,
+    score: similarity,
+    reason: `Similarity: ${(similarity * 100).toFixed(1)}% (threshold: ${threshold * 100}%)`,
+    evalType: 'semantic_similarity',
+    weakSignal: true,
+    warning: 'Embedding cosine similarity is an unreliable correctness signal; use it for retrieval/dedup and judge answer correctness with the reference-correctness judge or factual checks.',
+  };
+}
+
 /**
  * Semantic similarity evaluator
  */
 export async function semanticSimilarityEval(testCase, response, options = {}) {
   const expected = testCase.expected || testCase.reference || testCase.gold;
-  
+
   if (!expected) {
     return {
       pass: null,
@@ -136,18 +149,11 @@ export async function semanticSimilarityEval(testCase, response, options = {}) {
       evalType: 'semantic_similarity',
     };
   }
-  
+
   try {
     const similarity = await semanticSimilarity(expected, response);
     const threshold = testCase.similarity_threshold || options.threshold || 0.7;
-    const pass = similarity >= threshold;
-    
-    return {
-      pass,
-      score: similarity,
-      reason: `Similarity: ${(similarity * 100).toFixed(1)}% (threshold: ${threshold * 100}%)`,
-      evalType: 'semantic_similarity',
-    };
+    return buildSimilarityResult(similarity, threshold);
   } catch (error) {
     return {
       pass: null,
