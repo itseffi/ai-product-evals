@@ -1,3 +1,11 @@
+// A suite with every decisive case at the same extreme (all pass or all fail)
+// gives no discriminative signal; keep capability suites in between.
+export function isSaturated(passed, failed) {
+  const decisive = Number(passed) + Number(failed);
+  if (decisive <= 0) return false;
+  return Number(passed) === 0 || Number(failed) === 0;
+}
+
 // Calibration is an aggregate property, not a per-example one. These operate on
 // {p, outcome} pairs: p in [0,1] is the model's stated confidence, outcome is 0/1.
 export function brierScore(pairs) {
