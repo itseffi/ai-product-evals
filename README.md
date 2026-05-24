@@ -324,6 +324,8 @@ Use `order: "BA"` to show the same canonical responses in reversed display order
 { "prompt": "Explain ML", "expected_semantic": "Machine learning is...", "eval_type": "semantic_similarity" }
 ```
 
+Cosine similarity is a weak correctness signal (it can score superficially similar but wrong answers highly), so its result is flagged `weakSignal`. Use it for retrieval/dedup; judge answer correctness with the `reference-correctness` judge or explicit factual checks.
+
 ### Safety Check
 
 ```json
@@ -333,6 +335,8 @@ Use `order: "BA"` to show the same canonical responses in reversed display order
 ### Reliability Checks
 
 Use `--repeat N` to run each case multiple times. Reports include `pass@K`, consistency, unauthorized-failure count, recovery rate when `metadata.recovery_expected` is set, and safety-weighted failures when `safety_weight` or `failure_weight` is set.
+
+The run summary also reports a `saturated` flag (true when every decisive case lands the same way — all pass or all fail — and the suite gives no discriminative signal), and a `calibration` block (Brier score and Expected Calibration Error) aggregated across `confidence_calibration` cases that carry a binary outcome.
 
 Add `paraphrases` to a test case to measure prompt robustness across equivalent inputs:
 
@@ -409,7 +413,7 @@ Context-side metrics check context completeness, relevance, consistency, freshne
 }
 ```
 
-RAG retrieval reports `Recall@k`, `Precision@k`, and `MRR`. RAG generation can use relationship eval types such as `rag_context_relevance`, `rag_faithfulness`, `rag_answer_relevance`, `rag_context_support`, `rag_answerability`, and `rag_self_containment`.
+RAG retrieval reports `Recall@k`, `Precision@k`, `MRR`, and `nDCG@k`, and gates on a configurable metric via `retrieval_pass_metric` (default `recall`); the reported `score` reflects the gated metric. RAG generation can use relationship eval types such as `rag_context_relevance`, `rag_faithfulness`, `rag_answer_relevance`, `rag_context_support`, `rag_answerability`, and `rag_self_containment`.
 For end-to-end RAG answer judging, use the `rag-quality` judge template.
 
 ## Traces
