@@ -8,6 +8,8 @@ Use this file to decide which eval skill to apply first in this repository.
 2. If evals are failing but the repo runs, start with `skills/error-analysis.md`.
 3. If the task is domain-specific, route to the matching skill after error analysis.
 
+When a change alters documented behavior, update the README, the relevant `skills/` files (and their `SKILL.md` and `plugins/` copies), and any schema **in the same PR** — not as later cleanup.
+
 ## Skill Routing
 
 ### Pipeline broken or CI red
